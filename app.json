@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "ExpiryControl",
+    "slug": "expirycontrol-frontend",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "expirycontrol",
+    "platforms": ["ios", "android", "web"],
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  }
+}
