@@ -10,7 +10,6 @@ export default function useProducts(token) {
     try {
       setLoading(true);
       setError(null);
-
       const data = await getProducts(token);
       setProducts(data);
     } catch (fetchError) {

@@ -7,68 +7,58 @@ import { colors } from "../constants/colors";
 import { clearSession, getSession, saveSession } from "../services/sessionService";
 
 export default function App() {
-	const [screen, setScreen] = useState("login");
-	const [auth, setAuth] = useState(null);
-	const [initializing, setInitializing] = useState(true);
+  const [screen, setScreen] = useState("login");
+  const [auth, setAuth] = useState(null);
+  const [initializing, setInitializing] = useState(true);
 
-	useEffect(() => {
-		getSession()
-			.then((session) => {
-				if (session?.token) {
-					setAuth(session);
-					setScreen("home");
-				}
-			})
-			.catch(() => clearSession())
-			.finally(() => setInitializing(false));
-	}, []);
+  useEffect(() => {
+    getSession()
+      .then((session) => {
+        if (session?.token) {
+          setAuth(session);
+          setScreen("home");
+        }
+      })
+      .catch(() => clearSession())
+      .finally(() => setInitializing(false));
+  }, []);
 
-	const handleLogin = async (result) => {
-		await saveSession(result);
-		setAuth(result);
-		setScreen("home");
-	};
+  const handleLogin = async (result) => {
+    await saveSession(result);
+    setAuth(result);
+    setScreen("home");
+  };
 
-	const handleLogout = async () => {
-		await clearSession();
-		setAuth(null);
-		setScreen("login");
-	};
+  const handleLogout = async () => {
+    await clearSession();
+    setAuth(null);
+    setScreen("login");
+  };
 
-	if (initializing) {
-		return (
-			<View style={styles.loading}>
-				<ActivityIndicator color={colors.primary} size="large" />
-			</View>
-		);
-	}
+  if (initializing) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
 
-	if (screen === "login") {
-		return (
-			<LoginScreen
-				onLogin={handleLogin}
-				onNavigateToRegister={() => setScreen("register")}
-			/>
-		);
-	}
+  if (screen === "login") {
+    return <LoginScreen onLogin={handleLogin} onNavigateToRegister={() => setScreen("register")} />;
+  }
 
-	if (screen === "register") {
-		return (
-			<RegisterScreen
-				onRegister={() => setScreen("login")}
-				onCancel={() => setScreen("login")}
-			/>
-		);
-	}
+  if (screen === "register") {
+    return <RegisterScreen onRegister={() => setScreen("login")} onCancel={() => setScreen("login")} />;
+  }
 
-	return <HomeScreen auth={auth} onLogout={handleLogout} onUnauthorized={handleLogout} />;
+  return <HomeScreen auth={auth} onLogout={handleLogout} onUnauthorized={handleLogout} />;
 }
 
 const styles = StyleSheet.create({
-	loading: {
-		alignItems: "center",
-		backgroundColor: colors.background,
-		flex: 1,
-		justifyContent: "center",
-	},
+  loading: {
+    alignItems: "center",
+    backgroundColor: colors.background,
+    flex: 1,
+    justifyContent: "center",
+  },
 });

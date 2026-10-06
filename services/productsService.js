@@ -5,26 +5,15 @@ export function getProducts(token) {
 }
 
 export function createProduct(token, product) {
-  return apiRequest("/products", {
-    method: "POST",
-    token,
-    body: JSON.stringify(product),
-  });
+  return apiRequest("/products", { method: "POST", token, body: JSON.stringify(product) });
 }
 
 export function updateProduct(token, id, product) {
-  return apiRequest(`/products/${id}`, {
-    method: "PUT",
-    token,
-    body: JSON.stringify(product),
-  });
+  return apiRequest(`/products/${id}`, { method: "PUT", token, body: JSON.stringify(product) });
 }
 
 export function deleteProduct(token, id) {
-  return apiRequest(`/products/${id}`, {
-    method: "DELETE",
-    token,
-  });
+  return apiRequest(`/products/${id}`, { method: "DELETE", token });
 }
 
 export function getExpiredProducts(token) {
