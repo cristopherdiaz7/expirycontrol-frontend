@@ -1,18 +1,19 @@
 import { Pressable, StyleSheet, Text } from "react-native";
 import { colors } from "../constants/colors";
 
-export default function CustomButton({ title, onPress, disabled = false }) {
+export default function CustomButton({ title, onPress, disabled = false, variant = "primary" }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
         styles.button,
+    		styles[variant],
         disabled && styles.buttonDisabled,
         pressed && !disabled && styles.buttonPressed,
       ]}
     >
-      <Text style={styles.title}>{title}</Text>
+      <Text style={[styles.title, styles[`${variant}Title`]]}>{title}</Text>
     </Pressable>
   );
 }
@@ -20,11 +21,12 @@ export default function CustomButton({ title, onPress, disabled = false }) {
 const styles = StyleSheet.create({
   button: {
     alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 13,
   },
+	primary: { backgroundColor: colors.primary },
+	secondary: { backgroundColor: colors.cardElevated, borderColor: colors.border, borderWidth: 1 },
   buttonDisabled: {
     backgroundColor: colors.muted,
   },
@@ -33,8 +35,9 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   title: {
-    color: colors.white,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
   },
+  primaryTitle: { color: colors.primaryInk },
+  secondaryTitle: { color: colors.text },
 });
