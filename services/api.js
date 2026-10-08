@@ -1,5 +1,7 @@
 const baseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "");
 
+export const SESSION_EXPIRED_MESSAGE = "Tu sesión expiró. Inicia sesión nuevamente.";
+
 export class ApiError extends Error {
   constructor(message, status) {
     super(message);
@@ -8,9 +10,15 @@ export class ApiError extends Error {
   }
 }
 
-function getErrorMessage(status, payload) {
+// Un 401 en una petición con token significa sesión vencida.
+export function isSessionExpired(error) {
+  return error instanceof ApiError && error.status === 401 && error.sessionExpired === true;
+}
+
+function getErrorMessage(status, payload, hadToken) {
   if (status === 401) {
-    return "Tu sesión expiró. Inicia sesión nuevamente.";
+    // Sin token el 401 viene del login: se muestra el motivo que envía el servidor.
+    return hadToken ? SESSION_EXPIRED_MESSAGE : payload?.error || "Email o contraseña incorrectos.";
   }
 
   if (status === 404) {
@@ -65,7 +73,9 @@ export async function apiRequest(path, options = {}) {
   }
 
   if (!response.ok) {
-    throw new ApiError(getErrorMessage(response.status, payload), response.status);
+    const error = new ApiError(getErrorMessage(response.status, payload, Boolean(token)), response.status);
+    error.sessionExpired = response.status === 401 && Boolean(token);
+    throw error;
   }
 
   return payload;

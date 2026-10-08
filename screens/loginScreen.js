@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import CustomButton from "../components/customButton";
+import FormMessage from "../components/FormMessage";
 import TextField from "../components/TextField";
 import { colors, spacing } from "../constants/colors";
 import { loginUser } from "../services/authService";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const benefits = ["Inventario en un solo lugar", "Alertas antes del vencimiento", "Decisiones rápidas y claras"];
 
@@ -12,20 +15,28 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState(null);
+
+  const changeEmail = (value) => { setEmail(value); setErrors((current) => ({ ...current, email: undefined })); };
+  const changePassword = (value) => { setPassword(value); setErrors((current) => ({ ...current, password: undefined })); };
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Faltan campos", "Completa email y contraseña.");
-      return;
-    }
+    const validationErrors = {};
+    if (!email.trim()) validationErrors.email = "Ingresa tu email.";
+    else if (!EMAIL_PATTERN.test(email.trim())) validationErrors.email = "Ingresa un email válido.";
+    if (!password) validationErrors.password = "Ingresa tu contraseña.";
+
+    setErrors(validationErrors);
+    setFormError(null);
+    if (Object.keys(validationErrors).length > 0) return;
 
     try {
       setLoading(true);
-      const result = await loginUser({ email, password });
+      const result = await loginUser({ email: email.trim(), password });
       if (onLogin) await onLogin(result);
     } catch (error) {
-      Alert.alert("No se pudo iniciar sesión", error.message || String(error));
-    } finally {
+      setFormError(error.message || "No se pudo iniciar sesión.");
       setLoading(false);
     }
   };
@@ -56,8 +67,9 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }) {
                 <Text style={styles.cardTitle}>Bienvenido de nuevo</Text>
                 <Text style={styles.cardSubtitle}>Ingresa para ver tu resumen.</Text>
               </View>
-              <TextField label="Email" value={email} onChangeText={setEmail} placeholder="nombre@ejemplo.com" />
-              <TextField label="Contraseña" value={password} onChangeText={setPassword} placeholder="Escribe tu contraseña" secureTextEntry />
+              <FormMessage message={formError} />
+              <TextField label="Email" value={email} onChangeText={changeEmail} placeholder="nombre@ejemplo.com" keyboardType="email-address" error={errors.email} />
+              <TextField label="Contraseña" value={password} onChangeText={changePassword} placeholder="Escribe tu contraseña" secureTextEntry error={errors.password} />
               <CustomButton title={loading ? "Ingresando..." : "Ingresar"} onPress={handleLogin} disabled={loading} />
               <View style={styles.registerRow}>
                 <Text style={styles.registerPrompt}>¿Todavía no tienes cuenta?</Text>

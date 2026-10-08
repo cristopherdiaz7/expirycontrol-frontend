@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useFeedback } from "../components/FeedbackProvider";
 import ProductCard from "../components/ProductCard";
 import ProductForm from "../components/ProductForm";
 import StatCard from "../components/StatCard";
 import { colors, spacing } from "../constants/colors";
+import { isSessionExpired } from "../services/api";
 import { deleteProduct, getExpiredProducts, getExpiringProducts, getProductStats, getProducts } from "../services/productsService";
 
 const sections = [
@@ -15,6 +17,7 @@ const sections = [
 
 export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
   const { width } = useWindowDimensions();
+  const { notify, confirm } = useFeedback();
   const [section, setSection] = useState("dashboard");
   const [products, setProducts] = useState([]);
   const [expiredProducts, setExpiredProducts] = useState([]);
@@ -41,7 +44,7 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
       setExpiringProducts(expiringData);
       setStats(statsData);
     } catch (requestError) {
-      if (requestError.status === 401) {
+      if (isSessionExpired(requestError)) {
         onUnauthorized();
         return;
       }
@@ -53,30 +56,35 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
 
   useEffect(() => { loadData(); }, [auth.token, days]);
 
-  const handleDelete = (product) => {
-    Alert.alert("Eliminar producto", `¿Quieres eliminar ${product.name}?`, [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Eliminar",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setLoading(true);
-            await deleteProduct(auth.token, product.id);
-            await loadData();
-          } catch (requestError) {
-            if (requestError.status === 401) { onUnauthorized(); return; }
-            Alert.alert("No se pudo eliminar", requestError.message);
-            setLoading(false);
-          }
-        },
-      },
-    ]);
+  const handleDelete = async (product) => {
+    const accepted = await confirm({
+      title: "Eliminar producto",
+      message: `¿Quieres eliminar ${product.name}? Esta acción no se puede deshacer.`,
+      confirmText: "Eliminar",
+      destructive: true,
+    });
+    if (!accepted) return;
+
+    try {
+      setLoading(true);
+      await deleteProduct(auth.token, product.id);
+      notify(`${product.name} fue eliminado.`, { title: "Producto eliminado" });
+      await loadData();
+    } catch (requestError) {
+      if (isSessionExpired(requestError)) { onUnauthorized(); return; }
+      setLoading(false);
+      if (requestError.status === 404) {
+        // Otro dispositivo ya lo eliminó: se refresca la lista.
+        await loadData();
+      }
+      notify(requestError.message, { title: "No se pudo eliminar", tone: "danger" });
+    }
   };
 
-  const handleSaved = async () => {
+  const handleSaved = async (_savedProduct, message) => {
     setShowForm(false);
     setEditingProduct(null);
+    if (message) notify(message, { title: "Operación completada" });
     await loadData();
   };
 
@@ -86,7 +94,7 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
   const attentionCount = (stats?.expiredProducts || 0) + (stats?.expiringSoonProducts || 0);
 
   if (showForm) {
-    return <SafeAreaView style={styles.safeArea}><ProductForm token={auth.token} product={editingProduct} onSaved={handleSaved} onCancel={() => { setShowForm(false); setEditingProduct(null); }} /></SafeAreaView>;
+    return <SafeAreaView style={styles.safeArea}><ProductForm token={auth.token} product={editingProduct} onSaved={handleSaved} onUnauthorized={onUnauthorized} onCancel={() => { setShowForm(false); setEditingProduct(null); }} /></SafeAreaView>;
   }
 
   const isWide = width >= 760;
@@ -108,7 +116,7 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
             <View>
               <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>Estado de tus productos</Text><Text style={styles.sectionSubtitle}>{loading ? "Actualizando información..." : `${stats?.totalProducts || 0} productos registrados`}</Text></View><Pressable onPress={openCreate} style={styles.primaryButton}><Text style={styles.primaryText}>+ Agregar</Text></Pressable></View>
               <View style={styles.statsGrid}><StatCard label="Total" value={stats?.totalProducts ?? "-"} /><StatCard label="Vencidos" value={stats?.expiredProducts ?? "-"} tone="danger" /><StatCard label="Por vencer" value={stats?.expiringSoonProducts ?? "-"} tone="warning" /><StatCard label="Vigentes" value={stats?.validProducts ?? "-"} tone="success" /></View>
-              <View style={[styles.attentionPanel, attentionCount > 0 ? styles.attentionActive : styles.attentionCalm]}><View style={styles.attentionIcon}><Text style={styles.attentionIconText}>{attentionCount > 0 ? "!" : "✓"}</Text></View><View style={styles.attentionCopy}><Text style={styles.attentionTitle}>{attentionCount > 0 ? "Hay productos que revisar" : "Todo está en orden"}</Text><Text style={styles.attentionText}>{attentionCount > 0 ? `${attentionCount} producto${attentionCount === 1 ? " necesita" : "s necesitan"} atención.` : "No tienes productos vencidos o próximos a vencer."}</Text></View></View>
+              {stats ? <View style={[styles.attentionPanel, attentionCount > 0 ? styles.attentionActive : styles.attentionCalm]}><View style={[styles.attentionIcon, attentionCount > 0 ? styles.attentionIconActive : styles.attentionIconCalm]}><Text style={styles.attentionIconText}>{attentionCount > 0 ? "!" : "✓"}</Text></View><View style={styles.attentionCopy}><Text style={styles.attentionTitle}>{attentionCount > 0 ? "Hay productos que revisar" : "Todo está en orden"}</Text><Text style={styles.attentionText}>{attentionCount > 0 ? `${attentionCount} producto${attentionCount === 1 ? " necesita" : "s necesitan"} atención.` : "No tienes productos vencidos o próximos a vencer."}</Text></View></View> : null}
               <View style={styles.quickSection}><Text style={styles.sectionTitle}>Acciones rápidas</Text><View style={[styles.quickGrid, !isWide && styles.quickGridStacked]}><Pressable onPress={() => setSection("products")} style={styles.quickCard}><Text style={styles.quickNumber}>{products.length}</Text><Text style={styles.quickLabel}>Ver productos</Text><Text style={styles.quickHint}>Revisa tu inventario</Text></Pressable><Pressable onPress={() => setSection("expiring")} style={styles.quickCard}><Text style={[styles.quickNumber, { color: colors.warning }]}>{stats?.expiringSoonProducts ?? 0}</Text><Text style={styles.quickLabel}>Por vencer</Text><Text style={styles.quickHint}>Actúa antes de tiempo</Text></Pressable></View></View>
             </View>
           ) : (
@@ -116,8 +124,8 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
               <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>{section === "products" ? "Todos tus productos" : section === "expired" ? "Productos vencidos" : "Productos por vencer"}</Text><Text style={styles.sectionSubtitle}>{visibleProducts.length} producto{visibleProducts.length === 1 ? "" : "s"} en esta vista</Text></View>{section === "products" ? <Pressable onPress={openCreate} style={styles.primaryButton}><Text style={styles.primaryText}>+ Agregar</Text></Pressable> : null}</View>
               {section === "expiring" ? <View style={styles.filterBar}><Text style={styles.filterLabel}>Mostrar en los próximos</Text><View style={styles.filterOptions}>{[3, 7, 14].map((value) => <Pressable key={value} onPress={() => setDays(value)} style={[styles.filterOption, days === value && styles.filterOptionActive]}><Text style={[styles.filterText, days === value && styles.filterTextActive]}>{value} días</Text></Pressable>)}</View></View> : null}
               {loading ? <View style={styles.loadingBox}><Text style={styles.loadingText}>Actualizando productos...</Text></View> : null}
-              {!loading && visibleProducts.length === 0 ? <View style={styles.emptyBox}><Text style={styles.emptyMark}>{section === "expired" ? "✓" : "＋"}</Text><Text style={styles.emptyTitle}>{section === "expired" ? "Todo en orden" : "Aún no hay productos aquí"}</Text><Text style={styles.emptyText}>{section === "expired" ? "Actualmente no tienes productos vencidos." : section === "products" ? "Agrega tu primer producto para empezar a controlar sus fechas." : "No hay productos dentro del período seleccionado."}</Text>{section === "products" ? <Pressable onPress={openCreate} style={styles.primaryButton}><Text style={styles.primaryText}>Agregar producto</Text></Pressable> : null}</View> : null}
-              <View style={styles.productList}>{visibleProducts.map((product) => <ProductCard key={product.id} product={product} onEdit={openEdit} onDelete={handleDelete} />)}</View>
+              {!loading && !error && visibleProducts.length === 0 ? <View style={styles.emptyBox}><Text style={styles.emptyMark}>{section === "expired" ? "✓" : "＋"}</Text><Text style={styles.emptyTitle}>{section === "expired" ? "Todo en orden" : "Aún no hay productos aquí"}</Text><Text style={styles.emptyText}>{section === "expired" ? "Actualmente no tienes productos vencidos." : section === "products" ? "Agrega tu primer producto para empezar a controlar sus fechas." : "No hay productos dentro del período seleccionado."}</Text>{section === "products" ? <Pressable onPress={openCreate} style={styles.primaryButton}><Text style={styles.primaryText}>Agregar producto</Text></Pressable> : null}</View> : null}
+              <View style={styles.productList}>{visibleProducts.map((product) => <ProductCard key={product.id} product={product} soonDays={days} onEdit={openEdit} onDelete={handleDelete} />)}</View>
             </View>
           )}
         </View>
@@ -154,10 +162,11 @@ const styles = StyleSheet.create({
   primaryText: { color: colors.primaryInk, fontSize: 12, fontWeight: "800" },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   attentionPanel: { alignItems: "center", borderRadius: 16, flexDirection: "row", gap: 13, marginTop: 18, padding: 16 },
-  attentionIcon: { alignItems: "center", borderRadius: 10, height: 34, justifyContent: "center", width: 34 },
   attentionActive: { backgroundColor: colors.warningSoft, borderColor: "#806632", borderWidth: 1 },
   attentionCalm: { backgroundColor: colors.successSoft, borderColor: "#397556", borderWidth: 1 },
-  attentionIcon: { alignItems: "center", backgroundColor: colors.warning, borderRadius: 10, height: 34, justifyContent: "center", width: 34 },
+  attentionIcon: { alignItems: "center", borderRadius: 10, height: 34, justifyContent: "center", width: 34 },
+  attentionIconActive: { backgroundColor: colors.warning },
+  attentionIconCalm: { backgroundColor: colors.success },
   attentionIconText: { color: colors.primaryInk, fontSize: 18, fontWeight: "900" },
   attentionCopy: { flex: 1 },
   attentionTitle: { color: colors.text, fontSize: 14, fontWeight: "800", marginBottom: 3 },

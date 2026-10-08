@@ -1,18 +1,20 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "../constants/colors";
+import { daysUntil } from "../utils/dates";
 
-function getProductStatus(expirationDate) {
-  const today = new Date();
-  const date = new Date(`${expirationDate}T00:00:00`);
-  const days = Math.ceil((date - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
+// Mismas reglas que el backend: vencido si la fecha es hoy o anterior,
+// por vencer si cae dentro de los días del filtro elegido.
+function getProductStatus(expirationDate, soonDays) {
+  const days = daysUntil(expirationDate);
 
+  if (days === null) return { label: "Sin fecha", tone: "warning", detail: "Fecha inválida" };
   if (days <= 0) return { label: "Vencido", tone: "danger", detail: days === 0 ? "Vence hoy" : "Requiere atención" };
-  if (days <= 7) return { label: "Por vencer", tone: "warning", detail: `En ${days} día${days === 1 ? "" : "s"}` };
+  if (days <= soonDays) return { label: "Por vencer", tone: "warning", detail: `En ${days} día${days === 1 ? "" : "s"}` };
   return { label: "Vigente", tone: "success", detail: `En ${days} días` };
 }
 
-export default function ProductCard({ product, onEdit, onDelete }) {
-  const status = getProductStatus(product.expirationDate);
+export default function ProductCard({ product, soonDays = 7, onEdit, onDelete }) {
+  const status = getProductStatus(product.expirationDate, soonDays);
 
   return (
     <View style={styles.card}>

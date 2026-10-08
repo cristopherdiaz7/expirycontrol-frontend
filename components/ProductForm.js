@@ -1,47 +1,73 @@
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import CustomButton from "./customButton";
+import FormMessage from "./FormMessage";
 import TextField from "./TextField";
 import { colors, spacing } from "../constants/colors";
+import { isSessionExpired } from "../services/api";
 import { createProduct, updateProduct } from "../services/productsService";
+import { isValidDateString } from "../utils/dates";
 
 const emptyProduct = { name: "", description: "", category: "", quantity: "", expirationDate: "" };
 
-export default function ProductForm({ token, product, onSaved, onCancel }) {
+function validate(form) {
+  const errors = {};
+
+  if (!form.name.trim()) errors.name = "Ingresa el nombre del producto.";
+  if (!form.description.trim()) errors.description = "Ingresa una descripción.";
+  if (!form.category.trim()) errors.category = "Ingresa una categoría.";
+
+  if (form.quantity === "") {
+    errors.quantity = "Ingresa la cantidad.";
+  } else if (!Number.isInteger(Number(form.quantity)) || Number(form.quantity) < 0) {
+    errors.quantity = "Debe ser un número entero igual o mayor que cero.";
+  }
+
+  if (!form.expirationDate.trim()) {
+    errors.expirationDate = "Ingresa la fecha de vencimiento.";
+  } else if (!isValidDateString(form.expirationDate.trim())) {
+    errors.expirationDate = "Usa una fecha válida con formato AAAA-MM-DD.";
+  }
+
+  return errors;
+}
+
+export default function ProductForm({ token, product, onSaved, onCancel, onUnauthorized }) {
   const { width } = useWindowDimensions();
   const [form, setForm] = useState(emptyProduct);
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setForm(product ? { ...product, quantity: String(product.quantity) } : emptyProduct);
+    setErrors({});
+    setFormError(null);
   }, [product]);
 
-  const updateField = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const updateField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: undefined }));
+  };
 
   const handleSubmit = async () => {
-    const trimmedForm = { name: form.name.trim(), description: form.description.trim(), category: form.category.trim(), quantity: Number(form.quantity), expirationDate: form.expirationDate.trim() };
-    if (!trimmedForm.name || !trimmedForm.description || !trimmedForm.category || !form.quantity || !trimmedForm.expirationDate) {
-      Alert.alert("Faltan datos", "Completa todos los campos del producto.");
-      return;
-    }
-    if (!Number.isInteger(trimmedForm.quantity) || trimmedForm.quantity < 0) {
-      Alert.alert("Cantidad inválida", "La cantidad debe ser un número entero igual o mayor que cero.");
-      return;
-    }
-    const parsedDate = new Date(`${trimmedForm.expirationDate}T00:00:00`);
-    const isValidDate = /^\d{4}-\d{2}-\d{2}$/.test(trimmedForm.expirationDate) && !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === trimmedForm.expirationDate;
-    if (!isValidDate) {
-      Alert.alert("Fecha inválida", "Usa el formato AAAA-MM-DD.");
-      return;
-    }
+    const validationErrors = validate(form);
+    setErrors(validationErrors);
+    setFormError(null);
+    if (Object.keys(validationErrors).length > 0) return;
+
+    const payload = { name: form.name.trim(), description: form.description.trim(), category: form.category.trim(), quantity: Number(form.quantity), expirationDate: form.expirationDate.trim() };
 
     try {
       setLoading(true);
-      const savedProduct = product ? await updateProduct(token, product.id, trimmedForm) : await createProduct(token, trimmedForm);
-      Alert.alert("Operación completada", product ? "Producto actualizado." : "Producto creado.");
-      onSaved(savedProduct);
+      const savedProduct = product ? await updateProduct(token, product.id, payload) : await createProduct(token, payload);
+      onSaved(savedProduct, product ? "Producto actualizado." : "Producto creado.");
     } catch (error) {
-      Alert.alert("No se pudo guardar", error.message);
+      if (isSessionExpired(error)) {
+        onUnauthorized();
+        return;
+      }
+      setFormError(error.message);
     } finally {
       setLoading(false);
     }
@@ -53,10 +79,11 @@ export default function ProductForm({ token, product, onSaved, onCancel }) {
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.header}><Text style={styles.eyebrow}>{product ? "Editar inventario" : "Nuevo registro"}</Text><Text style={styles.title}>{product ? "Ajusta los datos del producto" : "Agrega un producto"}</Text><Text style={styles.subtitle}>Mantén tus fechas y cantidades listas para consultar.</Text></View>
       <View style={styles.card}>
-        <TextField label="Nombre" value={form.name} onChangeText={(value) => updateField("name", value)} placeholder="Leche" autoCapitalize="sentences" />
-        <TextField label="Descripción" value={form.description} onChangeText={(value) => updateField("description", value)} placeholder="Leche entera" autoCapitalize="sentences" />
-        <TextField label="Categoría" value={form.category} onChangeText={(value) => updateField("category", value)} placeholder="Lácteos" autoCapitalize="sentences" />
-        <View style={[styles.row, !isWide && styles.rowStacked]}><View style={styles.half}><TextField label="Cantidad" value={form.quantity} onChangeText={(value) => updateField("quantity", value.replace(/[^0-9]/g, ""))} placeholder="0" keyboardType="numeric" /></View><View style={styles.half}><TextField label="Vencimiento" value={form.expirationDate} onChangeText={(value) => updateField("expirationDate", value)} placeholder="AAAA-MM-DD" keyboardType="numbers-and-punctuation" /></View></View>
+        <FormMessage message={formError} />
+        <TextField label="Nombre" value={form.name} onChangeText={(value) => updateField("name", value)} placeholder="Leche" autoCapitalize="sentences" error={errors.name} />
+        <TextField label="Descripción" value={form.description} onChangeText={(value) => updateField("description", value)} placeholder="Leche entera" autoCapitalize="sentences" error={errors.description} />
+        <TextField label="Categoría" value={form.category} onChangeText={(value) => updateField("category", value)} placeholder="Lácteos" autoCapitalize="sentences" error={errors.category} />
+        <View style={[styles.row, !isWide && styles.rowStacked]}><View style={styles.half}><TextField label="Cantidad" value={form.quantity} onChangeText={(value) => updateField("quantity", value.replace(/[^0-9]/g, ""))} placeholder="0" keyboardType="numeric" error={errors.quantity} /></View><View style={styles.half}><TextField label="Vencimiento" value={form.expirationDate} onChangeText={(value) => updateField("expirationDate", value)} placeholder="AAAA-MM-DD" keyboardType="numbers-and-punctuation" error={errors.expirationDate} /></View></View>
         <View style={styles.actions}><CustomButton title={loading ? "Guardando..." : product ? "Guardar cambios" : "Crear producto"} onPress={handleSubmit} disabled={loading} /><CustomButton title="Cancelar" onPress={onCancel} disabled={loading} variant="secondary" /></View>
       </View>
     </ScrollView>
