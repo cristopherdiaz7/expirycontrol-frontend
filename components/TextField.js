@@ -11,13 +11,14 @@ export default function TextField({
   keyboardType = "default",
   autoCapitalize = "none",
   helper,
+  error,
 }) {
   const [focused, setFocused] = useState(false);
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputWrap, focused && styles.inputWrapFocused]}>
+      <View style={[styles.inputWrap, focused && styles.inputWrapFocused, error && styles.inputWrapError]}>
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -32,7 +33,8 @@ export default function TextField({
           style={styles.input}
         />
       </View>
-      {helper ? <Text style={styles.helper}>{helper}</Text> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {helper && !error ? <Text style={styles.helper}>{helper}</Text> : null}
     </View>
   );
 }
@@ -63,5 +65,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 13,
   },
+  inputWrapError: {
+    borderColor: colors.danger,
+  },
   helper: { color: colors.muted, fontSize: 12, lineHeight: 17 },
+  error: { color: colors.danger, fontSize: 12, lineHeight: 17 },
 });

@@ -1,4 +1,5 @@
 import { apiRequest } from "./api";
+import { getLocalToday } from "../utils/dates";
 
 export function getProducts(token) {
   return apiRequest("/products", { token });
@@ -16,14 +17,15 @@ export function deleteProduct(token, id) {
   return apiRequest(`/products/${id}`, { method: "DELETE", token });
 }
 
-export function getExpiredProducts(token) {
-  return apiRequest("/products/expired", { token });
+// El backend calcula vencimientos con la fecha local del usuario (parámetro today).
+export function getExpiredProducts(token, today = getLocalToday()) {
+  return apiRequest(`/products/expired?today=${today}`, { token });
 }
 
-export function getExpiringProducts(token, days = 7) {
-  return apiRequest(`/products/expiring?days=${days}`, { token });
+export function getExpiringProducts(token, days = 7, today = getLocalToday()) {
+  return apiRequest(`/products/expiring?days=${days}&today=${today}`, { token });
 }
 
-export function getProductStats(token, days = 7) {
-  return apiRequest(`/products/stats?days=${days}`, { token });
+export function getProductStats(token, days = 7, today = getLocalToday()) {
+  return apiRequest(`/products/stats?days=${days}&today=${today}`, { token });
 }

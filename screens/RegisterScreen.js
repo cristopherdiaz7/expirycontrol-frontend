@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import CustomButton from "../components/customButton";
+import FormMessage from "../components/FormMessage";
 import TextField from "../components/TextField";
 import { colors, spacing } from "../constants/colors";
 import { registerUser } from "../services/authService";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 6;
 
 export default function RegisterScreen({ onRegister, onCancel }) {
   const { width } = useWindowDimensions();
@@ -12,25 +16,34 @@ export default function RegisterScreen({ onRegister, onCancel }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState(null);
+
+  const change = (field, setter) => (value) => {
+    setter(value);
+    setErrors((current) => ({ ...current, [field]: undefined }));
+  };
 
   const handleSubmit = async () => {
-    if (!name || !email || !password) {
-      Alert.alert("Faltan campos", "Completa nombre, email y contraseña.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert("Las contraseñas no coinciden", "Revisa ambos campos e inténtalo nuevamente.");
-      return;
-    }
+    const validationErrors = {};
+    if (!name.trim()) validationErrors.name = "Ingresa tu nombre.";
+    if (!email.trim()) validationErrors.email = "Ingresa tu email.";
+    else if (!EMAIL_PATTERN.test(email.trim())) validationErrors.email = "Ingresa un email válido.";
+    if (!password) validationErrors.password = "Ingresa una contraseña.";
+    else if (password.length < MIN_PASSWORD_LENGTH) validationErrors.password = `Debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`;
+    if (!confirmPassword) validationErrors.confirmPassword = "Repite la contraseña.";
+    else if (password !== confirmPassword) validationErrors.confirmPassword = "Las contraseñas no coinciden.";
+
+    setErrors(validationErrors);
+    setFormError(null);
+    if (Object.keys(validationErrors).length > 0) return;
 
     try {
       setLoading(true);
-      await registerUser({ name, email, password });
-      Alert.alert("Cuenta creada", "Tu cuenta fue creada. Ahora inicia sesión.");
+      await registerUser({ name: name.trim(), email: email.trim(), password });
       if (onRegister) onRegister();
     } catch (error) {
-      Alert.alert("No se pudo crear la cuenta", error.message || String(error));
-    } finally {
+      setFormError(error.message || "No se pudo crear la cuenta.");
       setLoading(false);
     }
   };
@@ -51,10 +64,11 @@ export default function RegisterScreen({ onRegister, onCancel }) {
             </View>
             <View style={[styles.card, styles.cardShadow]}>
               <View style={styles.cardHeader}><Text style={styles.cardTitle}>Crear cuenta</Text><Text style={styles.cardSubtitle}>Solo necesitaremos unos datos.</Text></View>
-              <TextField label="Nombre" value={name} onChangeText={setName} placeholder="Tu nombre" autoCapitalize="words" />
-              <TextField label="Email" value={email} onChangeText={setEmail} placeholder="nombre@ejemplo.com" />
-              <TextField label="Contraseña" value={password} onChangeText={setPassword} placeholder="Mínimo 6 caracteres" secureTextEntry />
-              <TextField label="Confirmar contraseña" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Repite tu contraseña" secureTextEntry />
+              <FormMessage message={formError} />
+              <TextField label="Nombre" value={name} onChangeText={change("name", setName)} placeholder="Tu nombre" autoCapitalize="words" error={errors.name} />
+              <TextField label="Email" value={email} onChangeText={change("email", setEmail)} placeholder="nombre@ejemplo.com" keyboardType="email-address" error={errors.email} />
+              <TextField label="Contraseña" value={password} onChangeText={change("password", setPassword)} placeholder="Mínimo 6 caracteres" secureTextEntry error={errors.password} />
+              <TextField label="Confirmar contraseña" value={confirmPassword} onChangeText={change("confirmPassword", setConfirmPassword)} placeholder="Repite tu contraseña" secureTextEntry error={errors.confirmPassword} />
               <CustomButton title={loading ? "Creando cuenta..." : "Crear cuenta"} onPress={handleSubmit} disabled={loading} />
               <View style={styles.loginRow}><Text style={styles.loginPrompt}>¿Ya tienes una cuenta?</Text><Pressable onPress={onCancel}><Text style={styles.loginLink}>Volver al login</Text></Pressable></View>
             </View>
