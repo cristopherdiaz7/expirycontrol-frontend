@@ -1,16 +1,21 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import AuthLayout from "../components/AuthLayout";
 import CustomButton from "../components/customButton";
 import FormMessage from "../components/FormMessage";
 import TextField from "../components/TextField";
-import { colors, spacing } from "../constants/colors";
+import { colors, fonts } from "../constants/theme";
 import { registerUser } from "../services/authService";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 6;
 
+const benefits = [
+  { icon: "user-check", text: "Tus productos son solo tuyos" },
+  { icon: "clock", text: "Empieza en menos de un minuto" },
+];
+
 export default function RegisterScreen({ onRegister, onCancel }) {
-  const { width } = useWindowDimensions();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,57 +53,31 @@ export default function RegisterScreen({ onRegister, onCancel }) {
     }
   };
 
-  const isWide = width >= 760;
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={[styles.shell, isWide && styles.shellWide]}>
-            <View style={styles.hero}>
-              <View style={styles.brandRow}><View style={styles.brandMark}><Text style={styles.brandMarkText}>E</Text></View><Text style={styles.brand}>ExpiryControl</Text></View>
-              <Text style={styles.kicker}>Empieza con claridad</Text>
-              <Text style={styles.title}>Un lugar más simple para cuidar tus productos.</Text>
-              <Text style={styles.subtitle}>Crea tu cuenta y convierte las fechas de vencimiento en decisiones sencillas.</Text>
-            </View>
-            <View style={[styles.card, styles.cardShadow]}>
-              <View style={styles.cardHeader}><Text style={styles.cardTitle}>Crear cuenta</Text><Text style={styles.cardSubtitle}>Solo necesitaremos unos datos.</Text></View>
-              <FormMessage message={formError} />
-              <TextField label="Nombre" value={name} onChangeText={change("name", setName)} placeholder="Tu nombre" autoCapitalize="words" error={errors.name} />
-              <TextField label="Email" value={email} onChangeText={change("email", setEmail)} placeholder="nombre@ejemplo.com" keyboardType="email-address" error={errors.email} />
-              <TextField label="Contraseña" value={password} onChangeText={change("password", setPassword)} placeholder="Mínimo 6 caracteres" secureTextEntry error={errors.password} />
-              <TextField label="Confirmar contraseña" value={confirmPassword} onChangeText={change("confirmPassword", setConfirmPassword)} placeholder="Repite tu contraseña" secureTextEntry error={errors.confirmPassword} />
-              <CustomButton title={loading ? "Creando cuenta..." : "Crear cuenta"} onPress={handleSubmit} disabled={loading} />
-              <View style={styles.loginRow}><Text style={styles.loginPrompt}>¿Ya tienes una cuenta?</Text><Pressable onPress={onCancel}><Text style={styles.loginLink}>Volver al login</Text></Pressable></View>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <AuthLayout
+      kicker="Empieza con claridad"
+      title="Un lugar más simple para cuidar tus productos."
+      subtitle="Crea tu cuenta y convierte las fechas de vencimiento en decisiones sencillas."
+      benefits={benefits}
+      cardTitle="Crear cuenta"
+      cardSubtitle="Solo necesitaremos unos datos."
+    >
+      <FormMessage message={formError} />
+      <TextField label="Nombre" icon="user" value={name} onChangeText={change("name", setName)} placeholder="Tu nombre" autoCapitalize="words" error={errors.name} />
+      <TextField label="Email" icon="mail" value={email} onChangeText={change("email", setEmail)} placeholder="nombre@ejemplo.com" keyboardType="email-address" error={errors.email} />
+      <TextField label="Contraseña" icon="lock" value={password} onChangeText={change("password", setPassword)} placeholder="Mínimo 6 caracteres" secureTextEntry error={errors.password} />
+      <TextField label="Confirmar contraseña" icon="lock" value={confirmPassword} onChangeText={change("confirmPassword", setConfirmPassword)} placeholder="Repite tu contraseña" secureTextEntry error={errors.confirmPassword} />
+      <CustomButton title={loading ? "Creando cuenta..." : "Crear cuenta"} icon={loading ? undefined : "user-plus"} onPress={handleSubmit} disabled={loading} />
+      <View style={styles.switchRow}>
+        <Text style={styles.switchPrompt}>¿Ya tienes una cuenta?</Text>
+        <Pressable onPress={onCancel} accessibilityRole="link"><Text style={styles.switchLink}>Volver al login</Text></Pressable>
+      </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { backgroundColor: colors.background, flex: 1 },
-  flex: { flex: 1 },
-  scrollContent: { flexGrow: 1, justifyContent: "center", padding: spacing.page },
-  shell: { alignSelf: "center", gap: 28, maxWidth: 980, width: "100%" },
-  shellWide: { flexDirection: "row", gap: 34 },
-  hero: { flex: 1, justifyContent: "center", paddingVertical: 18 },
-  brandRow: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 46 },
-  brandMark: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 11, height: 34, justifyContent: "center", width: 34 },
-  brandMarkText: { color: colors.primaryInk, fontSize: 20, fontWeight: "900" },
-  brand: { color: colors.text, fontSize: 16, fontWeight: "800", letterSpacing: 0.4 },
-  kicker: { color: colors.primary, fontSize: 12, fontWeight: "800", letterSpacing: 1.2, marginBottom: 12, textTransform: "uppercase" },
-  title: { color: colors.text, fontSize: 40, fontWeight: "800", lineHeight: 47, maxWidth: 480 },
-  subtitle: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 16, maxWidth: 430 },
-  card: { backgroundColor: colors.card, borderColor: colors.border, borderRadius: 22, borderWidth: 1, gap: 18, justifyContent: "center", maxWidth: 410, padding: 24, width: "100%" },
-  cardShadow: Platform.select({ web: { boxShadow: "0 14px 24px rgba(0, 0, 0, 0.28)" }, default: { elevation: 8, shadowColor: colors.shadow, shadowOpacity: 0.28, shadowRadius: 24, shadowOffset: { height: 14, width: 0 } } }),
-  cardHeader: { marginBottom: 8 },
-  cardTitle: { color: colors.text, fontSize: 23, fontWeight: "800", marginBottom: 6 },
-  cardSubtitle: { color: colors.muted, fontSize: 13 },
-  loginRow: { alignItems: "center", flexDirection: "row", gap: 5, justifyContent: "center", marginTop: 2 },
-  loginPrompt: { color: colors.muted, fontSize: 13 },
-  loginLink: { color: colors.primary, fontSize: 13, fontWeight: "800" },
+  switchRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 5, justifyContent: "center", marginTop: 2 },
+  switchPrompt: { color: colors.muted, fontFamily: fonts.regular, fontSize: 13 },
+  switchLink: { color: colors.primary, fontFamily: fonts.bold, fontSize: 13 },
 });

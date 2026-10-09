@@ -1,9 +1,13 @@
+import { Feather } from "@expo/vector-icons";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors } from "../constants/colors";
+import CustomButton from "./customButton";
+import { colors, fonts, glass, radius, shadows, tones, type } from "../constants/theme";
 
 const FeedbackContext = createContext(null);
 const DEFAULT_DURATION = 4000;
+
+const noticeIcons = { success: "check-circle", warning: "alert-triangle", danger: "x-circle" };
 
 // Reemplaza a Alert.alert, que no hace nada en Expo Web.
 // notify() muestra un aviso temporal y confirm() devuelve una promesa con la respuesta.
@@ -43,6 +47,9 @@ export function FeedbackProvider({ children }) {
     if (timerRef.current) clearTimeout(timerRef.current);
   }, []);
 
+  const noticeTone = notice ? tones[notice.tone] : null;
+  const dialogTone = dialog?.destructive ? tones.danger : tones.default;
+
   return (
     <FeedbackContext.Provider value={{ notify, confirm, dismiss }}>
       <View style={styles.root}>
@@ -50,12 +57,15 @@ export function FeedbackProvider({ children }) {
 
         {notice ? (
           <View style={styles.noticeLayer} pointerEvents="box-none">
-            <Pressable onPress={dismiss} accessibilityRole="alert" style={[styles.notice, styles[notice.tone]]}>
-              <View style={[styles.noticeMark, styles[`${notice.tone}Mark`]]} />
+            <Pressable onPress={dismiss} accessibilityRole="alert" style={[styles.notice, { borderColor: noticeTone.border }]}>
+              <View style={[styles.noticeIcon, { backgroundColor: noticeTone.bg }]}>
+                <Feather name={noticeIcons[notice.tone]} size={18} color={noticeTone.fg} />
+              </View>
               <View style={styles.noticeCopy}>
                 {notice.title ? <Text style={styles.noticeTitle}>{notice.title}</Text> : null}
                 <Text style={styles.noticeText}>{notice.message}</Text>
               </View>
+              <Feather name="x" size={16} color={colors.muted} />
             </Pressable>
           </View>
         ) : null}
@@ -63,15 +73,14 @@ export function FeedbackProvider({ children }) {
         <Modal visible={dialog !== null} transparent animationType="fade" onRequestClose={() => closeDialog(false)}>
           <Pressable style={styles.backdrop} onPress={() => closeDialog(false)}>
             <Pressable style={styles.dialog} onPress={() => {}}>
+              <View style={[styles.dialogIcon, { backgroundColor: dialogTone.bg }]}>
+                <Feather name={dialog?.destructive ? "trash-2" : "help-circle"} size={22} color={dialogTone.fg} />
+              </View>
               <Text style={styles.dialogTitle}>{dialog?.title}</Text>
               {dialog?.message ? <Text style={styles.dialogText}>{dialog.message}</Text> : null}
               <View style={styles.dialogActions}>
-                <Pressable onPress={() => closeDialog(false)} style={styles.cancelButton}>
-                  <Text style={styles.cancelText}>{dialog?.cancelText || "Cancelar"}</Text>
-                </Pressable>
-                <Pressable onPress={() => closeDialog(true)} style={[styles.confirmButton, dialog?.destructive && styles.confirmDestructive]}>
-                  <Text style={[styles.confirmText, dialog?.destructive && styles.confirmDestructiveText]}>{dialog?.confirmText || "Aceptar"}</Text>
-                </Pressable>
+                <CustomButton title={dialog?.cancelText || "Cancelar"} onPress={() => closeDialog(false)} variant="secondary" style={styles.dialogButton} />
+                <CustomButton title={dialog?.confirmText || "Aceptar"} onPress={() => closeDialog(true)} variant={dialog?.destructive ? "danger" : "primary"} style={styles.dialogButton} />
               </View>
             </Pressable>
           </Pressable>
@@ -91,27 +100,17 @@ export function useFeedback() {
 
 const styles = StyleSheet.create({
   root: { backgroundColor: colors.background, flex: 1 },
-  noticeLayer: { alignItems: "center", left: 0, padding: 16, position: "absolute", right: 0, top: 0 },
-  notice: { alignItems: "center", borderRadius: 14, borderWidth: 1, flexDirection: "row", gap: 12, maxWidth: 520, paddingHorizontal: 16, paddingVertical: 13, width: "100%" },
-  success: { backgroundColor: colors.successSoft, borderColor: "#397556" },
-  warning: { backgroundColor: colors.warningSoft, borderColor: "#806632" },
-  danger: { backgroundColor: colors.dangerSoft, borderColor: "#80434A" },
-  noticeMark: { borderRadius: 4, height: 28, width: 4 },
-  successMark: { backgroundColor: colors.success },
-  warningMark: { backgroundColor: colors.warning },
-  dangerMark: { backgroundColor: colors.danger },
+  noticeLayer: { alignItems: "center", left: 0, padding: 16, position: "absolute", right: 0, top: 0, zIndex: 50 },
+  notice: { ...glass.strong, ...shadows.floating, alignItems: "center", borderRadius: radius.lg, flexDirection: "row", gap: 12, maxWidth: 520, paddingHorizontal: 14, paddingVertical: 12, width: "100%" },
+  noticeIcon: { alignItems: "center", borderRadius: radius.md, height: 36, justifyContent: "center", width: 36 },
   noticeCopy: { flex: 1 },
-  noticeTitle: { color: colors.text, fontSize: 14, fontWeight: "800", marginBottom: 2 },
-  noticeText: { color: colors.softText, fontSize: 13, lineHeight: 19 },
-  backdrop: { alignItems: "center", backgroundColor: "rgba(3, 10, 14, 0.72)", flex: 1, justifyContent: "center", padding: 20 },
-  dialog: { backgroundColor: colors.card, borderColor: colors.border, borderRadius: 20, borderWidth: 1, maxWidth: 400, padding: 22, width: "100%" },
-  dialogTitle: { color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: 8 },
-  dialogText: { color: colors.softText, fontSize: 14, lineHeight: 21 },
-  dialogActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end", marginTop: 22 },
-  cancelButton: { borderColor: colors.borderStrong, borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 },
-  cancelText: { color: colors.text, fontSize: 13, fontWeight: "800" },
-  confirmButton: { backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
-  confirmText: { color: colors.primaryInk, fontSize: 13, fontWeight: "800" },
-  confirmDestructive: { backgroundColor: colors.dangerSoft, borderColor: colors.danger, borderWidth: 1 },
-  confirmDestructiveText: { color: colors.danger },
+  noticeTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 14, marginBottom: 2 },
+  noticeText: { ...type.body, fontSize: 13, lineHeight: 19 },
+  backdrop: { alignItems: "center", backgroundColor: colors.overlay, flex: 1, justifyContent: "center", padding: 20 },
+  dialog: { ...glass.strong, ...shadows.floating, borderRadius: radius.xl, maxWidth: 400, padding: 24, width: "100%" },
+  dialogIcon: { alignItems: "center", borderRadius: radius.lg, height: 46, justifyContent: "center", marginBottom: 16, width: 46 },
+  dialogTitle: { ...type.heading, marginBottom: 8 },
+  dialogText: { ...type.body },
+  dialogActions: { flexDirection: "row", gap: 10, marginTop: 24 },
+  dialogButton: { flex: 1 },
 });

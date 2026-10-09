@@ -1,12 +1,14 @@
+import { Feather } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import CustomButton from "./customButton";
 import FormMessage from "./FormMessage";
 import TextField from "./TextField";
-import { colors, spacing } from "../constants/colors";
+import { colors, fonts, glass, radius, shadows, spacing, type } from "../constants/theme";
 import { isSessionExpired } from "../services/api";
 import { createProduct, updateProduct } from "../services/productsService";
 import { isValidDateString } from "../utils/dates";
+import useBreakpoint from "../utils/useBreakpoint";
 
 const emptyProduct = { name: "", description: "", category: "", quantity: "", expirationDate: "" };
 
@@ -33,7 +35,7 @@ function validate(form) {
 }
 
 export default function ProductForm({ token, product, onSaved, onCancel, onUnauthorized }) {
-  const { width } = useWindowDimensions();
+  const { isTablet } = useBreakpoint();
   const [form, setForm] = useState(emptyProduct);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
@@ -73,32 +75,50 @@ export default function ProductForm({ token, product, onSaved, onCancel, onUnaut
     }
   };
 
-  const isWide = width >= 560;
-
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <View style={styles.header}><Text style={styles.eyebrow}>{product ? "Editar inventario" : "Nuevo registro"}</Text><Text style={styles.title}>{product ? "Ajusta los datos del producto" : "Agrega un producto"}</Text><Text style={styles.subtitle}>Mantén tus fechas y cantidades listas para consultar.</Text></View>
+      <Pressable onPress={onCancel} disabled={loading} accessibilityRole="button" style={styles.back}>
+        <Feather name="arrow-left" size={16} color={colors.softText} />
+        <Text style={styles.backText}>Volver</Text>
+      </Pressable>
+
+      <View style={styles.header}>
+        <Text style={styles.kicker}>{product ? "Editar inventario" : "Nuevo registro"}</Text>
+        <Text style={styles.title}>{product ? "Ajusta los datos del producto" : "Agrega un producto"}</Text>
+        <Text style={styles.subtitle}>Mantén tus fechas y cantidades listas para consultar.</Text>
+      </View>
+
       <View style={styles.card}>
         <FormMessage message={formError} />
-        <TextField label="Nombre" value={form.name} onChangeText={(value) => updateField("name", value)} placeholder="Leche" autoCapitalize="sentences" error={errors.name} />
-        <TextField label="Descripción" value={form.description} onChangeText={(value) => updateField("description", value)} placeholder="Leche entera" autoCapitalize="sentences" error={errors.description} />
-        <TextField label="Categoría" value={form.category} onChangeText={(value) => updateField("category", value)} placeholder="Lácteos" autoCapitalize="sentences" error={errors.category} />
-        <View style={[styles.row, !isWide && styles.rowStacked]}><View style={styles.half}><TextField label="Cantidad" value={form.quantity} onChangeText={(value) => updateField("quantity", value.replace(/[^0-9]/g, ""))} placeholder="0" keyboardType="numeric" error={errors.quantity} /></View><View style={styles.half}><TextField label="Vencimiento" value={form.expirationDate} onChangeText={(value) => updateField("expirationDate", value)} placeholder="AAAA-MM-DD" keyboardType="numbers-and-punctuation" error={errors.expirationDate} /></View></View>
-        <View style={styles.actions}><CustomButton title={loading ? "Guardando..." : product ? "Guardar cambios" : "Crear producto"} onPress={handleSubmit} disabled={loading} /><CustomButton title="Cancelar" onPress={onCancel} disabled={loading} variant="secondary" /></View>
+        <TextField label="Nombre" icon="package" value={form.name} onChangeText={(value) => updateField("name", value)} placeholder="Leche" autoCapitalize="sentences" error={errors.name} />
+        <TextField label="Descripción" icon="file-text" value={form.description} onChangeText={(value) => updateField("description", value)} placeholder="Leche entera" autoCapitalize="sentences" error={errors.description} />
+        <TextField label="Categoría" icon="tag" value={form.category} onChangeText={(value) => updateField("category", value)} placeholder="Lácteos" autoCapitalize="sentences" error={errors.category} />
+        <View style={[styles.row, !isTablet && styles.rowStacked]}>
+          <View style={styles.half}><TextField label="Cantidad" icon="layers" value={form.quantity} onChangeText={(value) => updateField("quantity", value.replace(/[^0-9]/g, ""))} placeholder="0" keyboardType="numeric" error={errors.quantity} /></View>
+          <View style={styles.half}><TextField label="Vencimiento" icon="calendar" value={form.expirationDate} onChangeText={(value) => updateField("expirationDate", value)} placeholder="AAAA-MM-DD" keyboardType="numbers-and-punctuation" error={errors.expirationDate} helper="Ejemplo: 2026-12-31" /></View>
+        </View>
+        <View style={[styles.actions, isTablet && styles.actionsWide]}>
+          <CustomButton title="Cancelar" onPress={onCancel} disabled={loading} variant="secondary" style={isTablet && styles.actionWide} />
+          <CustomButton title={loading ? "Guardando..." : product ? "Guardar cambios" : "Crear producto"} icon={loading ? undefined : "check"} onPress={handleSubmit} disabled={loading} style={isTablet && styles.actionWide} />
+        </View>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { alignSelf: "center", maxWidth: 760, padding: spacing.page, paddingBottom: 40, width: "100%" },
+  content: { alignSelf: "center", maxWidth: 720, padding: spacing.page, paddingBottom: 48, paddingTop: 28, width: "100%" },
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 8, marginBottom: 22, paddingVertical: 6 },
+  backText: { color: colors.softText, fontFamily: fonts.semibold, fontSize: 13.5 },
   header: { marginBottom: 22 },
-  eyebrow: { color: colors.primary, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: 9, textTransform: "uppercase" },
-  title: { color: colors.text, fontSize: 28, fontWeight: "800", lineHeight: 34, marginBottom: 8 },
-  subtitle: { color: colors.muted, fontSize: 14, lineHeight: 21 },
-  card: { backgroundColor: colors.card, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 17, padding: 20 },
+  kicker: { ...type.kicker, marginBottom: 10 },
+  title: { ...type.title, marginBottom: 8 },
+  subtitle: { ...type.body },
+  card: { ...glass.surface, ...shadows.card, borderRadius: radius.xl, gap: 17, padding: 22 },
   row: { flexDirection: "row", gap: 14 },
-  rowStacked: { flexDirection: "column" },
+  rowStacked: { flexDirection: "column", gap: 17 },
   half: { flex: 1 },
-  actions: { gap: 10, marginTop: 5 },
+  actions: { flexDirection: "column-reverse", gap: 10, marginTop: 6 },
+  actionsWide: { flexDirection: "row", justifyContent: "flex-end" },
+  actionWide: { minWidth: 170 },
 });

@@ -1,5 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors } from "../constants/colors";
+import { Feather } from "@expo/vector-icons";
+import { StyleSheet, Text, View } from "react-native";
+import CustomButton from "./customButton";
+import { colors, fonts, glass, radius, tones, type } from "../constants/theme";
 import { daysUntil } from "../utils/dates";
 
 // Mismas reglas que el backend: vencido si la fecha es hoy o anterior,
@@ -7,61 +9,75 @@ import { daysUntil } from "../utils/dates";
 function getProductStatus(expirationDate, soonDays) {
   const days = daysUntil(expirationDate);
 
-  if (days === null) return { label: "Sin fecha", tone: "warning", detail: "Fecha inválida" };
-  if (days <= 0) return { label: "Vencido", tone: "danger", detail: days === 0 ? "Vence hoy" : "Requiere atención" };
-  if (days <= soonDays) return { label: "Por vencer", tone: "warning", detail: `En ${days} día${days === 1 ? "" : "s"}` };
-  return { label: "Vigente", tone: "success", detail: `En ${days} días` };
+  if (days === null) return { label: "Sin fecha", tone: "warning", icon: "help-circle", detail: "Fecha inválida" };
+  if (days <= 0) return { label: "Vencido", tone: "danger", icon: "alert-octagon", detail: days === 0 ? "Vence hoy" : "Requiere atención" };
+  if (days <= soonDays) return { label: "Por vencer", tone: "warning", icon: "clock", detail: `En ${days} día${days === 1 ? "" : "s"}` };
+  return { label: "Vigente", tone: "success", icon: "check-circle", detail: `En ${days} días` };
 }
 
-export default function ProductCard({ product, soonDays = 7, onEdit, onDelete }) {
+function Detail({ icon, label, value, color = colors.text }) {
+  return (
+    <View style={styles.detail}>
+      <View style={styles.detailLabelRow}>
+        <Feather name={icon} size={12} color={colors.muted} />
+        <Text style={styles.detailLabel}>{label}</Text>
+      </View>
+      <Text style={[styles.detailValue, { color }]}>{value}</Text>
+    </View>
+  );
+}
+
+export default function ProductCard({ product, soonDays = 7, onEdit, onDelete, style }) {
   const status = getProductStatus(product.expirationDate, soonDays);
+  const palette = tones[status.tone];
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, style]}>
       <View style={styles.topRow}>
-        <View style={styles.titleBlock}>
-          <Text style={styles.name}>{product.name}</Text>
-          <Text style={styles.category}>{product.category}</Text>
+        <View style={[styles.icon, { backgroundColor: palette.bg }]}>
+          <Feather name="package" size={18} color={palette.fg} />
         </View>
-        <View style={[styles.badge, styles[status.tone]]}><Text style={[styles.badgeText, styles[`${status.tone}Text`]]}>{status.label}</Text></View>
+        <View style={styles.titleBlock}>
+          <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
+          <Text style={styles.category} numberOfLines={1}>{product.category}</Text>
+        </View>
+        <View style={[styles.badge, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+          <Feather name={status.icon} size={12} color={palette.fg} />
+          <Text style={[styles.badgeText, { color: palette.fg }]}>{status.label}</Text>
+        </View>
       </View>
-      <Text style={styles.description}>{product.description}</Text>
+
+      <Text style={styles.description} numberOfLines={3}>{product.description}</Text>
+
       <View style={styles.detailsRow}>
-        <View><Text style={styles.detailLabel}>Vencimiento</Text><Text style={styles.date}>{product.expirationDate}</Text></View>
-        <View><Text style={styles.detailLabel}>Cantidad</Text><Text style={styles.quantity}>{product.quantity} un.</Text></View>
-        <View><Text style={styles.detailLabel}>Estado</Text><Text style={[styles.statusDetail, styles[`${status.tone}Text`]]}>{status.detail}</Text></View>
+        <Detail icon="calendar" label="Vencimiento" value={product.expirationDate} />
+        <Detail icon="layers" label="Cantidad" value={`${product.quantity} un.`} />
+        <Detail icon="activity" label="Estado" value={status.detail} color={palette.fg} />
       </View>
+
       <View style={styles.actions}>
-        <Pressable onPress={() => onEdit(product)} style={styles.editButton}><Text style={styles.editText}>Editar</Text></Pressable>
-        <Pressable onPress={() => onDelete(product)} style={styles.deleteButton}><Text style={styles.deleteText}>Eliminar</Text></Pressable>
+        <CustomButton title="Editar" icon="edit-2" size="sm" variant="secondary" onPress={() => onEdit(product)} style={styles.action} />
+        <CustomButton title="Eliminar" icon="trash-2" size="sm" variant="danger" onPress={() => onDelete(product)} style={styles.action} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.card, borderColor: colors.border, borderRadius: 18, borderWidth: 1, padding: 18 },
-  topRow: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-  titleBlock: { flex: 1, paddingRight: 12 },
-  name: { color: colors.text, fontSize: 18, fontWeight: "800", letterSpacing: 0, marginBottom: 5 },
-  category: { color: colors.primary, fontSize: 12, fontWeight: "700", letterSpacing: 0.3, textTransform: "uppercase" },
-  badge: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6 },
-  badgeText: { fontSize: 11, fontWeight: "800" },
-  danger: { backgroundColor: colors.dangerSoft },
-  warning: { backgroundColor: colors.warningSoft },
-  success: { backgroundColor: colors.successSoft },
-  dangerText: { color: colors.danger },
-  warningText: { color: colors.warning },
-  successText: { color: colors.success },
-  description: { color: colors.softText, fontSize: 13, lineHeight: 19, marginTop: 16 },
-  detailsRow: { borderBottomColor: colors.border, borderBottomWidth: 1, borderTopColor: colors.border, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", marginTop: 16, paddingVertical: 13 },
-  detailLabel: { color: colors.muted, fontSize: 10, fontWeight: "700", marginBottom: 5, textTransform: "uppercase" },
-  date: { color: colors.text, fontSize: 13, fontWeight: "700" },
-  quantity: { color: colors.text, fontSize: 13, fontWeight: "700" },
-  statusDetail: { fontSize: 13, fontWeight: "700" },
-  actions: { flexDirection: "row", gap: 10, marginTop: 15 },
-  editButton: { borderColor: colors.borderStrong, borderRadius: 9, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
-  editText: { color: colors.text, fontSize: 12, fontWeight: "800" },
-  deleteButton: { backgroundColor: colors.dangerSoft, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9 },
-  deleteText: { color: colors.danger, fontSize: 12, fontWeight: "800" },
+  card: { ...glass.surface, borderRadius: radius.xl, padding: 18 },
+  topRow: { alignItems: "flex-start", flexDirection: "row", gap: 12 },
+  icon: { alignItems: "center", borderRadius: radius.md, height: 40, justifyContent: "center", width: 40 },
+  titleBlock: { flex: 1, minWidth: 0 },
+  name: { color: colors.text, fontFamily: fonts.bold, fontSize: 16.5, letterSpacing: -0.2, lineHeight: 22 },
+  category: { ...type.label, color: colors.primary, marginTop: 4 },
+  badge: { alignItems: "center", borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: 5, paddingHorizontal: 10, paddingVertical: 5 },
+  badgeText: { fontFamily: fonts.bold, fontSize: 11.5 },
+  description: { ...type.body, fontSize: 13.5, lineHeight: 20, marginTop: 14 },
+  detailsRow: { borderBottomColor: colors.glassBorder, borderBottomWidth: 1, borderTopColor: colors.glassBorder, borderTopWidth: 1, flexDirection: "row", gap: 10, justifyContent: "space-between", marginTop: 16, paddingVertical: 13 },
+  detail: { flexShrink: 1 },
+  detailLabelRow: { alignItems: "center", flexDirection: "row", gap: 5, marginBottom: 5 },
+  detailLabel: { ...type.label, fontSize: 10 },
+  detailValue: { fontFamily: fonts.semibold, fontSize: 13 },
+  actions: { flexDirection: "row", gap: 10, marginTop: 16 },
+  action: { flex: 1 },
 });
