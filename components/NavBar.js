@@ -5,7 +5,7 @@ import { colors, fonts, glass, layout, radius, shadows } from "../constants/them
 
 // Navegación flotante: barra superior en PC y barra inferior en móvil.
 // Recibe la lista de secciones, así que admite sumar más sin cambiar el componente.
-export default function NavBar({ items, current, onChange, onLogout, variant = "bottom" }) {
+export default function NavBar({ items, current, onChange, onLogout, variant = "bottom", compact = false }) {
   if (variant === "top") {
     return (
       <View style={styles.topLayer} pointerEvents="box-none">
@@ -23,9 +23,9 @@ export default function NavBar({ items, current, onChange, onLogout, variant = "
               );
             })}
           </View>
-          <Pressable onPress={onLogout} accessibilityRole="button" style={({ hovered }) => [styles.logout, hovered && styles.itemHovered]}>
+          <Pressable onPress={onLogout} accessibilityRole="button" accessibilityLabel="Cerrar sesión" style={({ hovered }) => [styles.logout, hovered && styles.itemHovered]}>
             <Feather name="log-out" size={16} color={colors.softText} />
-            <Text style={styles.logoutText}>Cerrar sesión</Text>
+            {compact ? null : <Text style={styles.logoutText}>Cerrar sesión</Text>}
           </Pressable>
         </View>
       </View>
@@ -43,7 +43,7 @@ export default function NavBar({ items, current, onChange, onLogout, variant = "
                 <Feather name={item.icon} size={18} color={active ? colors.primaryInk : colors.softText} />
                 {item.badge ? <View style={styles.dot}><Text style={styles.dotText}>{item.badge}</Text></View> : null}
               </View>
-              <Text style={[styles.bottomLabel, active && styles.bottomLabelActive]} numberOfLines={1}>{item.label}</Text>
+              <Text style={[styles.bottomLabel, active && styles.bottomLabelActive]} numberOfLines={1}>{item.shortLabel || item.label}</Text>
             </Pressable>
           );
         })}
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   topLayer: { alignItems: "center", left: 0, paddingHorizontal: 20, position: "absolute", right: 0, top: 16, zIndex: 20 },
   topBar: { ...glass.strong, ...shadows.floating, alignItems: "center", borderRadius: radius.xl, flexDirection: "row", gap: 16, height: layout.navHeight, justifyContent: "space-between", maxWidth: layout.maxWidth, paddingHorizontal: 18, width: "100%" },
   topItems: { alignItems: "center", flexDirection: "row", gap: 6 },
-  topItem: { alignItems: "center", borderRadius: radius.pill, flexDirection: "row", gap: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  topItem: { alignItems: "center", borderRadius: radius.pill, flexDirection: "row", gap: 7, paddingHorizontal: 12, paddingVertical: 9 },
   topItemActive: { backgroundColor: colors.primary },
   itemHovered: { backgroundColor: "rgba(255, 255, 255, 0.06)" },
   topLabel: { color: colors.softText, fontFamily: fonts.semibold, fontSize: 13.5 },
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   bottomLayer: { alignItems: "center", bottom: 14, left: 0, paddingHorizontal: 14, position: "absolute", right: 0, zIndex: 20 },
   bottomBar: { ...glass.strong, ...shadows.floating, borderRadius: radius.xl, flexDirection: "row", justifyContent: "space-between", maxWidth: 520, paddingHorizontal: 8, paddingVertical: 9, width: "100%" },
   bottomItem: { alignItems: "center", flex: 1, gap: 4, minWidth: 0 },
-  bottomIcon: { alignItems: "center", borderRadius: radius.pill, height: 34, justifyContent: "center", width: 50 },
+  bottomIcon: { alignItems: "center", borderRadius: radius.pill, height: 34, justifyContent: "center", width: 46 },
   bottomIconActive: { backgroundColor: colors.primary },
   bottomLabel: { color: colors.muted, fontFamily: fonts.medium, fontSize: 10.5 },
   bottomLabelActive: { color: colors.primary, fontFamily: fonts.bold },
