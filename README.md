@@ -156,7 +156,7 @@ Con la IP de la PC en `.env` también funciona Expo Web, así que sirve para pro
 
 ### Inicio
 
-Tiene cuatro secciones, que se cambian desde una barra de navegación flotante: arriba en PC y abajo en móvil.
+Tiene cinco secciones, que se cambian desde una barra de navegación flotante: arriba en PC y abajo en móvil.
 
 | Sección | Qué muestra |
 |---|---|
@@ -164,8 +164,22 @@ Tiene cuatro secciones, que se cambian desde una barra de navegación flotante: 
 | **Productos** | Todos los productos, con botón para agregar |
 | **Vencidos** | Los productos cuya fecha ya pasó o es hoy |
 | **Por vencer** | Los que vencen en los próximos 3, 7 o 14 días, según el filtro elegido |
+| **Notificaciones** | El centro de notificaciones, con las alertas de vencimiento |
 
 Cada producto se muestra en una tarjeta con nombre, categoría, descripción, fecha, cantidad, una etiqueta de estado (Vencido, Por vencer o Vigente) y botones para editar y eliminar.
+
+### Centro de notificaciones
+
+- Agrupa las alertas en cinco categorías, sin repetir productos: vencidos, vencen hoy, y próximos 3, 7 y 14 días.
+- Usa rojo para vencidos y vence hoy, y ámbar para los próximos vencimientos.
+- Las no leídas se distinguen con un punto de color; las leídas quedan atenuadas.
+- Permite marcar una notificación como leída o marcar todas a la vez.
+- La navegación muestra la cantidad sin leer.
+- El estado de lectura se guarda en el backend por usuario, así que vale en cualquier dispositivo. Si un producto cambia de categoría o de fecha, su notificación vuelve a figurar sin leer.
+- Se actualiza al crear, editar o eliminar un producto.
+- Si las notificaciones no se pueden cargar, el resto de la aplicación sigue funcionando.
+
+Son notificaciones dentro de la app: no incluye avisos del sistema con la app cerrada.
 
 ### Formulario de producto
 
@@ -217,8 +231,9 @@ No necesitan el backend ni el archivo `.env`.
 | `__tests__/api.test.js` | 13 | Armado de peticiones, envío del token y mensajes para cada error (400, 401 con y sin token, 404, 409, 500 y falla de conexión) |
 | `__tests__/dates.test.js` | 11 | Fecha local, validación de fechas y cálculo de días |
 | `__tests__/productsService.test.js` | 8 | Rutas y métodos del CRUD, y envío de `today` y `days` |
+| `__tests__/notifications.test.js` | 12 | Llamadas del servicio de notificaciones, agrupado por categoría y textos de cada aviso |
 
-Total: 32 tests.
+Total: 44 tests.
 
 Los tests cubren la lógica que no depende de la pantalla. La interfaz se verifica con las pruebas manuales de la sección siguiente.
 
@@ -249,19 +264,27 @@ Con el backend y la app en ejecución:
 13. Crear uno que vence en 5 días: con el filtro en 7 o 14 días figura en "Por vencer"; con el filtro en 3 días pasa a "Vigente".
 14. Los contadores del Resumen coinciden con la cantidad de productos de cada pestaña.
 
+**Notificaciones**
+
+15. Con productos vencidos y por vencer, la sección Notificaciones los muestra agrupados y la navegación indica la cantidad sin leer.
+16. "Marcar leída" atenúa esa notificación y baja el contador.
+17. "Marcar todas como leídas" deja el contador en cero.
+18. Editar la fecha de un producto ya leído para que cambie de categoría: su notificación vuelve a figurar sin leer.
+19. Eliminar un producto: su notificación desaparece.
+
 **Sesión**
 
-15. Recargar la página con la sesión iniciada: sigue en el Inicio.
-16. Cerrar sesión: vuelve al login, sin aviso.
-17. Sesión vencida: esperar una hora, o borrar el token desde las herramientas del navegador, y realizar cualquier acción. Debe volver al login con el aviso de sesión vencida.
+20. Recargar la página con la sesión iniciada: sigue en el Inicio.
+21. Cerrar sesión: vuelve al login, sin aviso.
+22. Sesión vencida: esperar una hora, o borrar el token desde las herramientas del navegador, y realizar cualquier acción. Debe volver al login con el aviso de sesión vencida.
 
 **Aislamiento**
 
-18. Iniciar sesión con otro usuario: no se ven los productos del primero.
+23. Iniciar sesión con otro usuario: no se ven los productos ni las notificaciones del primero.
 
 **Errores**
 
-19. Detener el backend y recargar: aparece "No se pudo conectar con el servidor." con el botón "Reintentar".
+24. Detener el backend y recargar: aparece "No se pudo conectar con el servidor." con el botón "Reintentar".
 
 ## Estructura del proyecto
 
@@ -280,6 +303,7 @@ expirycontrol-frontend/
 │   ├── FeedbackProvider.js    Avisos y diálogo de confirmación
 │   ├── FormMessage.js         Mensaje de error dentro de un formulario
 │   ├── NavBar.js              Navegación flotante (superior en PC, inferior en móvil)
+│   ├── NotificationCenter.js  Centro de notificaciones
 │   ├── ProductCard.js         Tarjeta de producto con su estado
 │   ├── ProductForm.js         Formulario para crear y editar
 │   ├── StatCard.js            Contador del Resumen
@@ -288,10 +312,12 @@ expirycontrol-frontend/
 ├── services/
 │   ├── api.js                 Peticiones HTTP, token y mensajes de error
 │   ├── authService.js         Registro y login
+│   ├── notificationsService.js  Notificaciones y estado de lectura
 │   ├── productsService.js     CRUD, vencimientos y estadísticas
 │   └── sessionService.js      Guardado de la sesión en AsyncStorage
 ├── utils/
 │   ├── dates.js               Fecha local, validación y cálculo de días
+│   ├── notifications.js       Categorías, agrupado y textos de las notificaciones
 │   └── useBreakpoint.js       Tamaño de pantalla (móvil, tablet, PC)
 ├── constants/
 │   └── theme.js               Sistema visual: colores, tipografía, espaciados, radios y sombras

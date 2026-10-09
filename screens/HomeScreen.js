@@ -6,11 +6,13 @@ import Brand from "../components/Brand";
 import CustomButton from "../components/customButton";
 import { useFeedback } from "../components/FeedbackProvider";
 import NavBar from "../components/NavBar";
+import NotificationCenter from "../components/NotificationCenter";
 import ProductCard from "../components/ProductCard";
 import ProductForm from "../components/ProductForm";
 import StatCard from "../components/StatCard";
 import { colors, fonts, glass, layout, radius, spacing, tones, type } from "../constants/theme";
 import { isSessionExpired } from "../services/api";
+import { getNotifications, markAllNotificationsRead, markNotificationRead } from "../services/notificationsService";
 import { deleteProduct, getExpiredProducts, getExpiringProducts, getProductStats, getProducts } from "../services/productsService";
 import useBreakpoint from "../utils/useBreakpoint";
 
@@ -19,6 +21,7 @@ const sections = [
   { key: "products", label: "Productos", icon: "package" },
   { key: "expired", label: "Vencidos", icon: "alert-octagon" },
   { key: "expiring", label: "Por vencer", icon: "clock" },
+  { key: "notifications", label: "Notificaciones", shortLabel: "Avisos", icon: "bell" },
 ];
 
 const sectionCopy = {
@@ -26,6 +29,7 @@ const sectionCopy = {
   products: { kicker: "Inventario", title: "Todos tus productos", subtitle: "Revisa, edita o elimina lo que tienes registrado." },
   expired: { kicker: "Requieren atención", title: "Productos vencidos", subtitle: "Productos cuya fecha de vencimiento ya llegó." },
   expiring: { kicker: "Próximos vencimientos", title: "Productos por vencer", subtitle: "Actúa antes de que lleguen a su fecha." },
+  notifications: { kicker: "Centro de notificaciones", title: "Notificaciones", subtitle: "Alertas de productos vencidos y de próximos vencimientos." },
 };
 
 const emptyCopy = {
@@ -44,6 +48,10 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
   const [expiredProducts, setExpiredProducts] = useState([]);
   const [expiringProducts, setExpiringProducts] = useState([]);
   const [stats, setStats] = useState(null);
+  const [notifications, setNotifications] = useState(null);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [notificationsError, setNotificationsError] = useState(null);
+  const [markingRead, setMarkingRead] = useState(false);
   const [days, setDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -77,7 +85,28 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
     }
   };
 
+  // Las notificaciones se cargan aparte: si fallan, el resto de la app sigue funcionando.
+  const loadNotifications = async () => {
+    try {
+      setNotificationsLoading(true);
+      setNotificationsError(null);
+      setNotifications(await getNotifications(auth.token));
+    } catch (requestError) {
+      if (isSessionExpired(requestError)) {
+        onUnauthorized();
+        return;
+      }
+      setNotificationsError(requestError.status === 404 ? "El servidor no ofrece notificaciones. Verifica que el backend esté actualizado." : requestError.message);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  const reloadAll = () => Promise.all([loadData(), loadNotifications()]);
+
   useEffect(() => { loadData(); }, [auth.token, days]);
+  // No dependen del filtro de días: se recargan al cambiar la sesión o los productos.
+  useEffect(() => { loadNotifications(); }, [auth.token]);
 
   const handleDelete = async (product) => {
     const accepted = await confirm({
@@ -92,23 +121,44 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
       setLoading(true);
       await deleteProduct(auth.token, product.id);
       notify(`${product.name} fue eliminado.`, { title: "Producto eliminado" });
-      await loadData();
+      await reloadAll();
     } catch (requestError) {
       if (isSessionExpired(requestError)) { onUnauthorized(); return; }
       setLoading(false);
       if (requestError.status === 404) {
         // Otro dispositivo ya lo eliminó: se refresca la lista.
-        await loadData();
+        await reloadAll();
       }
       notify(requestError.message, { title: "No se pudo eliminar", tone: "danger" });
     }
   };
 
+  // Las dos acciones devuelven la lista ya actualizada.
+  const updateReadState = async (request) => {
+    try {
+      setMarkingRead(true);
+      setNotifications(await request());
+    } catch (requestError) {
+      if (isSessionExpired(requestError)) { onUnauthorized(); return; }
+      if (requestError.status === 404) {
+        // El producto cambió o se eliminó desde otro dispositivo: se refresca todo.
+        await reloadAll();
+        return;
+      }
+      notify(requestError.message, { title: "No se pudo actualizar", tone: "danger" });
+    } finally {
+      setMarkingRead(false);
+    }
+  };
+
+  const handleMarkRead = (notification) => updateReadState(() => markNotificationRead(auth.token, notification.productId));
+  const handleMarkAllRead = () => updateReadState(() => markAllNotificationsRead(auth.token));
+
   const handleSaved = async (_savedProduct, message) => {
     setShowForm(false);
     setEditingProduct(null);
     if (message) notify(message, { title: "Operación completada" });
-    await loadData();
+    await reloadAll();
   };
 
   const closeForm = () => { setShowForm(false); setEditingProduct(null); };
@@ -130,7 +180,8 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
   const attentionTone = needsAttention ? tones.warning : tones.success;
   const copy = sectionCopy[section];
 
-  const navItems = sections.map((item) => (item.key === "expired" && stats?.expiredProducts > 0 ? { ...item, badge: stats.expiredProducts } : item));
+  const unreadCount = notifications?.unreadCount || 0;
+  const navItems = sections.map((item) => (item.key === "notifications" && unreadCount > 0 ? { ...item, badge: unreadCount > 99 ? "99+" : unreadCount } : item));
 
   const productColumns = isWide ? 3 : isTablet ? 2 : 1;
   const productWidth = Math.floor((shellWidth - GRID_GAP * (productColumns - 1)) / productColumns);
@@ -141,7 +192,7 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <AppBackground />
-      {isDesktop ? <NavBar variant="top" items={navItems} current={section} onChange={setSection} onLogout={onLogout} /> : null}
+      {isDesktop ? <NavBar variant="top" items={navItems} current={section} onChange={setSection} onLogout={onLogout} compact={!isWide} /> : null}
 
       <ScrollView contentContainerStyle={[styles.content, isDesktop ? styles.contentDesktop : styles.contentMobile]}>
         <View style={styles.shell} onLayout={(event) => setShellWidth(event.nativeEvent.layout.width)}>
@@ -170,7 +221,7 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
                 <Text style={styles.errorTitle}>No pudimos actualizar tus datos</Text>
                 <Text style={styles.errorText}>{error}</Text>
               </View>
-              <CustomButton title="Reintentar" icon="refresh-cw" size="sm" variant="danger" onPress={loadData} />
+              <CustomButton title="Reintentar" icon="refresh-cw" size="sm" variant="danger" onPress={reloadAll} />
             </View>
           ) : null}
 
@@ -209,6 +260,8 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
                 </View>
               </View>
             </View>
+          ) : section === "notifications" ? (
+            <NotificationCenter data={notifications} loading={notificationsLoading} error={notificationsError} busy={markingRead} onMarkRead={handleMarkRead} onMarkAllRead={handleMarkAllRead} onRetry={loadNotifications} />
           ) : (
             <View>
               {section === "expiring" ? (
