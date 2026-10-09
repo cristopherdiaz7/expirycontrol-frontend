@@ -18,6 +18,7 @@ Necesita el backend en ejecución: [expirycontrol-backend](https://github.com/cr
 - [Importes](#importes)
 - [Tests](#tests)
 - [Pruebas manuales](#pruebas-manuales)
+- [Despliegue en Azure](#despliegue-en-azure)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Problemas frecuentes](#problemas-frecuentes)
 
@@ -316,6 +317,54 @@ Con el backend y la app en ejecución:
 **Errores**
 
 31. Detener el backend y recargar: aparece "No se pudo conectar con el servidor." con el botón "Reintentar".
+
+## Despliegue en Azure
+
+La versión web está publicada en:
+
+`https://stexpirycontrolweb.z14.web.core.windows.net`
+
+Usa el backend desplegado en Azure Container Apps. La dirección debe abrirse con `https://`; por HTTP el sitio no responde.
+
+### Cómo se publica
+
+La versión web de Expo se compila a archivos estáticos (HTML, JavaScript y fuentes): no necesita un servidor propio. Esos archivos se sirven desde una **cuenta de almacenamiento** de Azure con la opción de sitio estático, dentro del mismo grupo de recursos que el backend (`rg-expirycontrol`).
+
+El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre en GitHub Actions en cada push a `main`, en cada Pull Request hacia `main` y a mano desde la pestaña Actions.
+
+| Job | Qué hace | Si falla |
+|---|---|---|
+| **Tests** | Instala las dependencias con `npm ci` y ejecuta los tests | Los jobs siguientes no se ejecutan |
+| **Compilar web** | Genera la versión web y comprueba que apunta al backend público | No se despliega |
+| **Desplegar en Azure** | Solo en `main`: sube los archivos y comprueba el sitio publicado | El pipeline queda en rojo |
+
+En un Pull Request el despliegue no corre: ahí solo se prueba y se compila. Lo que se publica es la misma compilación que pasó las comprobaciones; no se vuelve a compilar.
+
+### La dirección del backend
+
+`EXPO_PUBLIC_API_URL` se lee **al compilar** y queda escrita dentro del JavaScript. Por eso la versión publicada no usa el archivo `.env`: el valor está en el workflow. No es un secreto, porque cualquiera que abra el sitio puede verlo en el navegador.
+
+Para que el navegador pueda llamar al backend desde este sitio, su dirección está en la lista `CORS_ALLOWED_ORIGINS` del backend.
+
+### Identidad y secretos
+
+El pipeline inicia sesión en Azure con **OIDC**, sin contraseñas guardadas. Usa el mismo *Service Principal* que el backend, con una credencial federada que solo acepta la rama `main` de este repositorio y con permiso de escritura únicamente sobre la cuenta de almacenamiento.
+
+En GitHub Secrets hay tres identificadores, que no son contraseñas: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` y `AZURE_SUBSCRIPTION_ID`. El frontend no tiene ningún secreto propio.
+
+### Compilar a mano
+
+```bash
+# Linux / macOS / Git Bash
+EXPO_PUBLIC_API_URL=https://<backend> npx expo export --platform web --clear
+```
+
+```powershell
+# Windows PowerShell
+$env:EXPO_PUBLIC_API_URL = "https://<backend>"; npx expo export --platform web --clear
+```
+
+El resultado queda en la carpeta `dist/`, que no se versiona. `--clear` evita que quede una dirección anterior guardada en la caché de Expo.
 
 ## Estructura del proyecto
 
