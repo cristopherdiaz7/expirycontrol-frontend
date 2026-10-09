@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import CustomButton from "./customButton";
 import StatCard from "./StatCard";
+import StateBox from "./StateBox";
 import { colors, fonts, glass, radius, spacing, tones, type } from "../constants/theme";
 import { formatARS, formatMonth } from "../utils/currency";
 
@@ -37,22 +38,18 @@ function LossItem({ loss, compact }) {
 
 export default function LossCenter({ losses, stats, loading, error, onRetry, productsWithoutPrice = 0, statWidth, compact = false }) {
   if (loading && !stats) {
-    return (
-      <View style={styles.stateBox}>
-        <ActivityIndicator color={colors.primary} />
-        <Text style={styles.stateText}>Cargando pérdidas...</Text>
-      </View>
-    );
+    return <StateBox loading text="Cargando pérdidas..." />;
   }
 
   if (error) {
     return (
-      <View style={styles.stateBox}>
-        <View style={[styles.stateIcon, { backgroundColor: colors.dangerSoft }]}><Feather name="wifi-off" size={22} color={colors.danger} /></View>
-        <Text style={styles.stateTitle}>No pudimos cargar las pérdidas</Text>
-        <Text style={styles.stateText}>{error}</Text>
-        <CustomButton title="Reintentar" icon="refresh-cw" size="sm" variant="secondary" onPress={onRetry} style={styles.stateAction} />
-      </View>
+      <StateBox
+        icon="wifi-off"
+        tone="danger"
+        title="No pudimos cargar las pérdidas"
+        text={error}
+        action={<CustomButton title="Reintentar" icon="refresh-cw" size="sm" variant="secondary" onPress={onRetry} />}
+      />
     );
   }
 
@@ -73,11 +70,7 @@ export default function LossCenter({ losses, stats, loading, error, onRetry, pro
     return (
       <View>
         {priceNotice}
-        <View style={styles.stateBox}>
-          <View style={styles.stateIcon}><Feather name="shield" size={22} color={colors.primary} /></View>
-          <Text style={styles.stateTitle}>Sin pérdidas registradas</Text>
-          <Text style={styles.stateText}>Cuando un producto con precio venza, su importe aparecerá aquí.</Text>
-        </View>
+        <StateBox icon="shield" title="Sin pérdidas registradas" text="Cuando un producto con precio venza, su importe aparecerá aquí." />
       </View>
     );
   }
@@ -158,10 +151,4 @@ const styles = StyleSheet.create({
   itemAmountBlockCompact: { alignItems: "flex-start", flexBasis: "100%", paddingLeft: 48 },
   itemAmountLabel: { ...type.label, fontSize: 10, marginBottom: 3 },
   itemAmount: { color: colors.danger, fontFamily: fonts.extrabold, fontSize: 16.5, letterSpacing: -0.2 },
-
-  stateBox: { ...glass.surface, alignItems: "center", borderRadius: radius.xl, paddingHorizontal: 24, paddingVertical: 36 },
-  stateIcon: { alignItems: "center", backgroundColor: colors.primarySoft, borderRadius: radius.lg, height: 52, justifyContent: "center", marginBottom: 14, width: 52 },
-  stateTitle: { ...type.heading, fontSize: 17, marginBottom: 6, textAlign: "center" },
-  stateText: { ...type.body, fontSize: 13.5, marginTop: 4, maxWidth: 360, textAlign: "center" },
-  stateAction: { marginTop: 18 },
 });

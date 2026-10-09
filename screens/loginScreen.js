@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import AuthLayout from "../components/AuthLayout";
+import AuthSwitch from "../components/AuthSwitch";
 import CustomButton from "../components/customButton";
 import FormMessage from "../components/FormMessage";
 import TextField from "../components/TextField";
-import { colors, fonts } from "../constants/theme";
 import { loginUser } from "../services/authService";
+import { EMAIL_PATTERN } from "../utils/validation";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const benefits = [
   { icon: "package", text: "Inventario en un solo lugar" },
@@ -58,16 +57,7 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }) {
       <TextField label="Email" icon="mail" value={email} onChangeText={changeEmail} placeholder="nombre@ejemplo.com" keyboardType="email-address" error={errors.email} />
       <TextField label="Contraseña" icon="lock" value={password} onChangeText={changePassword} placeholder="Escribe tu contraseña" secureTextEntry error={errors.password} />
       <CustomButton title={loading ? "Ingresando..." : "Ingresar"} icon={loading ? undefined : "log-in"} onPress={handleLogin} disabled={loading} />
-      <View style={styles.switchRow}>
-        <Text style={styles.switchPrompt}>¿Todavía no tienes cuenta?</Text>
-        <Pressable onPress={onNavigateToRegister} accessibilityRole="link"><Text style={styles.switchLink}>Registrate</Text></Pressable>
-      </View>
+      <AuthSwitch prompt="¿Todavía no tienes cuenta?" linkText="Registrate" onPress={onNavigateToRegister} />
     </AuthLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  switchRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 5, justifyContent: "center", marginTop: 2 },
-  switchPrompt: { color: colors.muted, fontFamily: fonts.regular, fontSize: 13 },
-  switchLink: { color: colors.primary, fontFamily: fonts.bold, fontSize: 13 },
-});
