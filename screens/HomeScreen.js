@@ -1,22 +1,43 @@
+import { Feather } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import AppBackground from "../components/AppBackground";
+import Brand from "../components/Brand";
+import CustomButton from "../components/customButton";
 import { useFeedback } from "../components/FeedbackProvider";
+import NavBar from "../components/NavBar";
 import ProductCard from "../components/ProductCard";
 import ProductForm from "../components/ProductForm";
 import StatCard from "../components/StatCard";
-import { colors, spacing } from "../constants/colors";
+import { colors, fonts, glass, layout, radius, spacing, tones, type } from "../constants/theme";
 import { isSessionExpired } from "../services/api";
 import { deleteProduct, getExpiredProducts, getExpiringProducts, getProductStats, getProducts } from "../services/productsService";
+import useBreakpoint from "../utils/useBreakpoint";
 
 const sections = [
-  { key: "dashboard", label: "Resumen" },
-  { key: "products", label: "Productos" },
-  { key: "expired", label: "Vencidos" },
-  { key: "expiring", label: "Por vencer" },
+  { key: "dashboard", label: "Resumen", icon: "grid" },
+  { key: "products", label: "Productos", icon: "package" },
+  { key: "expired", label: "Vencidos", icon: "alert-octagon" },
+  { key: "expiring", label: "Por vencer", icon: "clock" },
 ];
 
+const sectionCopy = {
+  dashboard: { kicker: "Resumen de inventario", subtitle: "Mira lo que necesita tu atención hoy." },
+  products: { kicker: "Inventario", title: "Todos tus productos", subtitle: "Revisa, edita o elimina lo que tienes registrado." },
+  expired: { kicker: "Requieren atención", title: "Productos vencidos", subtitle: "Productos cuya fecha de vencimiento ya llegó." },
+  expiring: { kicker: "Próximos vencimientos", title: "Productos por vencer", subtitle: "Actúa antes de que lleguen a su fecha." },
+};
+
+const emptyCopy = {
+  products: { icon: "inbox", title: "Aún no hay productos", text: "Agrega tu primer producto para empezar a controlar sus fechas." },
+  expired: { icon: "check-circle", title: "Todo en orden", text: "Actualmente no tienes productos vencidos." },
+  expiring: { icon: "calendar", title: "Nada por vencer", text: "No hay productos dentro del período seleccionado." },
+};
+
+const GRID_GAP = 14;
+
 export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
-  const { width } = useWindowDimensions();
+  const { width, isTablet, isDesktop, isWide } = useBreakpoint();
   const { notify, confirm } = useFeedback();
   const [section, setSection] = useState("dashboard");
   const [products, setProducts] = useState([]);
@@ -28,6 +49,8 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
   const [error, setError] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  // Ancho real del contenido, para calcular las columnas de las grillas.
+  const [shellWidth, setShellWidth] = useState(Math.min(width - spacing.page * 2, layout.maxWidth));
 
   const loadData = async () => {
     try {
@@ -88,113 +111,232 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
     await loadData();
   };
 
+  const closeForm = () => { setShowForm(false); setEditingProduct(null); };
   const openCreate = () => { setEditingProduct(null); setShowForm(true); };
   const openEdit = (product) => { setEditingProduct(product); setShowForm(true); };
-  const visibleProducts = section === "expired" ? expiredProducts : section === "expiring" ? expiringProducts : products;
-  const attentionCount = (stats?.expiredProducts || 0) + (stats?.expiringSoonProducts || 0);
 
   if (showForm) {
-    return <SafeAreaView style={styles.safeArea}><ProductForm token={auth.token} product={editingProduct} onSaved={handleSaved} onUnauthorized={onUnauthorized} onCancel={() => { setShowForm(false); setEditingProduct(null); }} /></SafeAreaView>;
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <AppBackground />
+        <ProductForm token={auth.token} product={editingProduct} onSaved={handleSaved} onUnauthorized={onUnauthorized} onCancel={closeForm} />
+      </SafeAreaView>
+    );
   }
 
-  const isWide = width >= 760;
+  const visibleProducts = section === "expired" ? expiredProducts : section === "expiring" ? expiringProducts : products;
+  const attentionCount = (stats?.expiredProducts || 0) + (stats?.expiringSoonProducts || 0);
+  const needsAttention = attentionCount > 0;
+  const attentionTone = needsAttention ? tones.warning : tones.success;
+  const copy = sectionCopy[section];
+
+  const navItems = sections.map((item) => (item.key === "expired" && stats?.expiredProducts > 0 ? { ...item, badge: stats.expiredProducts } : item));
+
+  const productColumns = isWide ? 3 : isTablet ? 2 : 1;
+  const productWidth = Math.floor((shellWidth - GRID_GAP * (productColumns - 1)) / productColumns);
+  const statColumns = isDesktop ? 4 : 2;
+  const statWidth = Math.floor((shellWidth - GRID_GAP * (statColumns - 1)) / statColumns);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.shell}>
-          <View style={styles.header}>
-            <View style={styles.brandRow}><View style={styles.brandMark}><Text style={styles.brandMarkText}>E</Text></View><Text style={styles.brand}>ExpiryControl</Text></View>
-            <View style={styles.headerLine}><View style={styles.headerCopy}><Text style={styles.kicker}>Resumen de inventario</Text><Text style={styles.title}>Hola, {auth.user?.name || "usuario"}</Text><Text style={styles.subtitle}>Mira lo que necesita tu atención hoy.</Text></View><Pressable onPress={onLogout} style={styles.logoutButton}><Text style={styles.logoutText}>Cerrar sesión</Text></Pressable></View>
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <AppBackground />
+      {isDesktop ? <NavBar variant="top" items={navItems} current={section} onChange={setSection} onLogout={onLogout} /> : null}
+
+      <ScrollView contentContainerStyle={[styles.content, isDesktop ? styles.contentDesktop : styles.contentMobile]}>
+        <View style={styles.shell} onLayout={(event) => setShellWidth(event.nativeEvent.layout.width)}>
+          {!isDesktop ? (
+            <View style={styles.mobileTop}>
+              <Brand />
+              <Pressable onPress={onLogout} accessibilityRole="button" accessibilityLabel="Cerrar sesión" style={styles.iconButton}>
+                <Feather name="log-out" size={17} color={colors.softText} />
+              </Pressable>
+            </View>
+          ) : null}
+
+          <View style={[styles.header, isTablet && styles.headerWide]}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.kicker}>{copy.kicker}</Text>
+              <Text style={[styles.title, !isTablet && styles.titleCompact]}>{section === "dashboard" ? `Hola, ${auth.user?.name || "usuario"}` : copy.title}</Text>
+              <Text style={styles.subtitle}>{copy.subtitle}</Text>
+            </View>
+            {section === "dashboard" || section === "products" ? <CustomButton title="Agregar producto" icon="plus" onPress={openCreate} style={!isTablet && styles.fullWidth} /> : null}
           </View>
 
-          <View style={styles.tabs}>{sections.map((item) => <Pressable key={item.key} onPress={() => setSection(item.key)} style={[styles.tab, section === item.key && styles.activeTab]}><Text style={[styles.tabText, section === item.key && styles.activeTabText]}>{item.label}</Text></Pressable>)}</View>
-
-          {error ? <View style={styles.errorBox}><Text style={styles.errorTitle}>No pudimos actualizar tus datos</Text><Text style={styles.errorText}>{error}</Text><Pressable onPress={loadData} style={styles.retryButton}><Text style={styles.retryText}>Reintentar</Text></Pressable></View> : null}
+          {error ? (
+            <View style={styles.errorBox}>
+              <View style={styles.errorIcon}><Feather name="wifi-off" size={18} color={colors.danger} /></View>
+              <View style={styles.errorCopy}>
+                <Text style={styles.errorTitle}>No pudimos actualizar tus datos</Text>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+              <CustomButton title="Reintentar" icon="refresh-cw" size="sm" variant="danger" onPress={loadData} />
+            </View>
+          ) : null}
 
           {section === "dashboard" ? (
             <View>
-              <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>Estado de tus productos</Text><Text style={styles.sectionSubtitle}>{loading ? "Actualizando información..." : `${stats?.totalProducts || 0} productos registrados`}</Text></View><Pressable onPress={openCreate} style={styles.primaryButton}><Text style={styles.primaryText}>+ Agregar</Text></Pressable></View>
-              <View style={styles.statsGrid}><StatCard label="Total" value={stats?.totalProducts ?? "-"} /><StatCard label="Vencidos" value={stats?.expiredProducts ?? "-"} tone="danger" /><StatCard label="Por vencer" value={stats?.expiringSoonProducts ?? "-"} tone="warning" /><StatCard label="Vigentes" value={stats?.validProducts ?? "-"} tone="success" /></View>
-              {stats ? <View style={[styles.attentionPanel, attentionCount > 0 ? styles.attentionActive : styles.attentionCalm]}><View style={[styles.attentionIcon, attentionCount > 0 ? styles.attentionIconActive : styles.attentionIconCalm]}><Text style={styles.attentionIconText}>{attentionCount > 0 ? "!" : "✓"}</Text></View><View style={styles.attentionCopy}><Text style={styles.attentionTitle}>{attentionCount > 0 ? "Hay productos que revisar" : "Todo está en orden"}</Text><Text style={styles.attentionText}>{attentionCount > 0 ? `${attentionCount} producto${attentionCount === 1 ? " necesita" : "s necesitan"} atención.` : "No tienes productos vencidos o próximos a vencer."}</Text></View></View> : null}
-              <View style={styles.quickSection}><Text style={styles.sectionTitle}>Acciones rápidas</Text><View style={[styles.quickGrid, !isWide && styles.quickGridStacked]}><Pressable onPress={() => setSection("products")} style={styles.quickCard}><Text style={styles.quickNumber}>{products.length}</Text><Text style={styles.quickLabel}>Ver productos</Text><Text style={styles.quickHint}>Revisa tu inventario</Text></Pressable><Pressable onPress={() => setSection("expiring")} style={styles.quickCard}><Text style={[styles.quickNumber, { color: colors.warning }]}>{stats?.expiringSoonProducts ?? 0}</Text><Text style={styles.quickLabel}>Por vencer</Text><Text style={styles.quickHint}>Actúa antes de tiempo</Text></Pressable></View></View>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Estado de tus productos</Text>
+                <Text style={styles.sectionSubtitle}>{loading ? "Actualizando información..." : `${stats?.totalProducts || 0} productos registrados`}</Text>
+              </View>
+
+              <View style={styles.grid}>
+                <StatCard label="Total" icon="box" value={stats?.totalProducts ?? "-"} style={{ width: statWidth }} />
+                <StatCard label="Vencidos" icon="alert-octagon" tone="danger" value={stats?.expiredProducts ?? "-"} style={{ width: statWidth }} />
+                <StatCard label="Por vencer" icon="clock" tone="warning" value={stats?.expiringSoonProducts ?? "-"} style={{ width: statWidth }} />
+                <StatCard label="Vigentes" icon="check-circle" tone="success" value={stats?.validProducts ?? "-"} style={{ width: statWidth }} />
+              </View>
+
+              {stats ? (
+                <View style={[styles.attentionPanel, { backgroundColor: attentionTone.bg, borderColor: attentionTone.border }]}>
+                  <View style={[styles.attentionIcon, { backgroundColor: attentionTone.fg }]}>
+                    <Feather name={needsAttention ? "alert-triangle" : "check"} size={18} color={colors.primaryInk} />
+                  </View>
+                  <View style={styles.attentionCopy}>
+                    <Text style={styles.attentionTitle}>{needsAttention ? "Hay productos que revisar" : "Todo está en orden"}</Text>
+                    <Text style={styles.attentionText}>{needsAttention ? `${attentionCount} producto${attentionCount === 1 ? " necesita" : "s necesitan"} atención.` : "No tienes productos vencidos o próximos a vencer."}</Text>
+                  </View>
+                </View>
+              ) : null}
+
+              <View style={styles.quickSection}>
+                <Text style={styles.sectionTitle}>Acciones rápidas</Text>
+                <View style={[styles.quickGrid, !isTablet && styles.quickGridStacked]}>
+                  <QuickCard icon="package" tone="default" value={products.length} label="Ver productos" hint="Revisa tu inventario" onPress={() => setSection("products")} />
+                  <QuickCard icon="alert-octagon" tone="danger" value={stats?.expiredProducts ?? 0} label="Vencidos" hint="Retira lo que ya venció" onPress={() => setSection("expired")} />
+                  <QuickCard icon="clock" tone="warning" value={stats?.expiringSoonProducts ?? 0} label="Por vencer" hint="Actúa antes de tiempo" onPress={() => setSection("expiring")} />
+                </View>
+              </View>
             </View>
           ) : (
             <View>
-              <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>{section === "products" ? "Todos tus productos" : section === "expired" ? "Productos vencidos" : "Productos por vencer"}</Text><Text style={styles.sectionSubtitle}>{visibleProducts.length} producto{visibleProducts.length === 1 ? "" : "s"} en esta vista</Text></View>{section === "products" ? <Pressable onPress={openCreate} style={styles.primaryButton}><Text style={styles.primaryText}>+ Agregar</Text></Pressable> : null}</View>
-              {section === "expiring" ? <View style={styles.filterBar}><Text style={styles.filterLabel}>Mostrar en los próximos</Text><View style={styles.filterOptions}>{[3, 7, 14].map((value) => <Pressable key={value} onPress={() => setDays(value)} style={[styles.filterOption, days === value && styles.filterOptionActive]}><Text style={[styles.filterText, days === value && styles.filterTextActive]}>{value} días</Text></Pressable>)}</View></View> : null}
-              {loading ? <View style={styles.loadingBox}><Text style={styles.loadingText}>Actualizando productos...</Text></View> : null}
-              {!loading && !error && visibleProducts.length === 0 ? <View style={styles.emptyBox}><Text style={styles.emptyMark}>{section === "expired" ? "✓" : "＋"}</Text><Text style={styles.emptyTitle}>{section === "expired" ? "Todo en orden" : "Aún no hay productos aquí"}</Text><Text style={styles.emptyText}>{section === "expired" ? "Actualmente no tienes productos vencidos." : section === "products" ? "Agrega tu primer producto para empezar a controlar sus fechas." : "No hay productos dentro del período seleccionado."}</Text>{section === "products" ? <Pressable onPress={openCreate} style={styles.primaryButton}><Text style={styles.primaryText}>Agregar producto</Text></Pressable> : null}</View> : null}
-              <View style={styles.productList}>{visibleProducts.map((product) => <ProductCard key={product.id} product={product} soonDays={days} onEdit={openEdit} onDelete={handleDelete} />)}</View>
+              {section === "expiring" ? (
+                <View style={styles.filterBar}>
+                  <View style={styles.filterLabelRow}>
+                    <Feather name="sliders" size={14} color={colors.muted} />
+                    <Text style={styles.filterLabel}>Mostrar en los próximos</Text>
+                  </View>
+                  <View style={styles.filterOptions}>
+                    {[3, 7, 14].map((value) => (
+                      <Pressable key={value} onPress={() => setDays(value)} accessibilityRole="button" accessibilityState={{ selected: days === value }} style={[styles.filterOption, days === value && styles.filterOptionActive]}>
+                        <Text style={[styles.filterText, days === value && styles.filterTextActive]}>{value} días</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              <Text style={styles.count}>{loading ? "Actualizando productos..." : `${visibleProducts.length} producto${visibleProducts.length === 1 ? "" : "s"} en esta vista`}</Text>
+
+              {loading && visibleProducts.length === 0 ? (
+                <View style={styles.stateBox}>
+                  <ActivityIndicator color={colors.primary} />
+                  <Text style={styles.stateText}>Cargando productos...</Text>
+                </View>
+              ) : null}
+
+              {!loading && !error && visibleProducts.length === 0 ? (
+                <View style={styles.stateBox}>
+                  <View style={styles.stateIcon}><Feather name={emptyCopy[section].icon} size={22} color={colors.primary} /></View>
+                  <Text style={styles.stateTitle}>{emptyCopy[section].title}</Text>
+                  <Text style={styles.stateText}>{emptyCopy[section].text}</Text>
+                  {section === "products" ? <CustomButton title="Agregar producto" icon="plus" onPress={openCreate} style={styles.stateAction} /> : null}
+                </View>
+              ) : null}
+
+              <View style={styles.grid}>
+                {visibleProducts.map((product) => <ProductCard key={product.id} product={product} soonDays={days} onEdit={openEdit} onDelete={handleDelete} style={{ width: productWidth }} />)}
+              </View>
             </View>
           )}
         </View>
       </ScrollView>
+
+      {!isDesktop ? <NavBar variant="bottom" items={navItems} current={section} onChange={setSection} onLogout={onLogout} /> : null}
     </SafeAreaView>
+  );
+}
+
+function QuickCard({ icon, tone, value, label, hint, onPress }) {
+  const palette = tones[tone];
+
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" style={({ hovered, pressed }) => [styles.quickCard, hovered && styles.quickCardHovered, pressed && styles.quickCardPressed]}>
+      <View style={[styles.quickIcon, { backgroundColor: palette.bg }]}>
+        <Feather name={icon} size={18} color={palette.fg} />
+      </View>
+      <View style={styles.quickCopy}>
+        <Text style={styles.quickLabel}>{label}</Text>
+        <Text style={styles.quickHint}>{hint}</Text>
+      </View>
+      <Text style={[styles.quickNumber, { color: palette.fg }]}>{value}</Text>
+      <Feather name="chevron-right" size={18} color={colors.muted} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: colors.background, flex: 1 },
-  content: { padding: spacing.page, paddingBottom: 48 },
-  shell: { alignSelf: "center", maxWidth: 1120, width: "100%" },
-  header: { marginBottom: 28 },
-  brandRow: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 38 },
-  brandMark: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 10, height: 32, justifyContent: "center", width: 32 },
-  brandMarkText: { color: colors.primaryInk, fontSize: 19, fontWeight: "900" },
-  brand: { color: colors.text, fontSize: 16, fontWeight: "800" },
-  headerLine: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between" },
-  headerCopy: { flex: 1, paddingRight: 16 },
-  kicker: { color: colors.primary, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: 8, textTransform: "uppercase" },
-  title: { color: colors.text, fontSize: 34, fontWeight: "800", lineHeight: 40 },
-  subtitle: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 8 },
-  logoutButton: { borderColor: colors.border, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
-  logoutText: { color: colors.softText, fontSize: 12, fontWeight: "700" },
-  tabs: { borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", gap: 22, marginBottom: 30 },
-  tab: { borderBottomColor: "transparent", borderBottomWidth: 2, paddingBottom: 12, paddingHorizontal: 2 },
-  activeTab: { borderBottomColor: colors.primary },
-  tabText: { color: colors.muted, fontSize: 13, fontWeight: "700" },
-  activeTabText: { color: colors.primary },
-  sectionHeader: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
-  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: "800", marginBottom: 5 },
-  sectionSubtitle: { color: colors.muted, fontSize: 13 },
-  primaryButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11 },
-  primaryText: { color: colors.primaryInk, fontSize: 12, fontWeight: "800" },
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  attentionPanel: { alignItems: "center", borderRadius: 16, flexDirection: "row", gap: 13, marginTop: 18, padding: 16 },
-  attentionActive: { backgroundColor: colors.warningSoft, borderColor: "#806632", borderWidth: 1 },
-  attentionCalm: { backgroundColor: colors.successSoft, borderColor: "#397556", borderWidth: 1 },
-  attentionIcon: { alignItems: "center", borderRadius: 10, height: 34, justifyContent: "center", width: 34 },
-  attentionIconActive: { backgroundColor: colors.warning },
-  attentionIconCalm: { backgroundColor: colors.success },
-  attentionIconText: { color: colors.primaryInk, fontSize: 18, fontWeight: "900" },
+  content: { paddingHorizontal: spacing.page },
+  contentMobile: { paddingBottom: 124, paddingTop: 20 },
+  contentDesktop: { paddingBottom: 56, paddingTop: 16 + layout.navHeight + 36 },
+  shell: { alignSelf: "center", maxWidth: layout.maxWidth, width: "100%" },
+
+  mobileTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 28 },
+  iconButton: { ...glass.surface, alignItems: "center", borderRadius: radius.md, height: 40, justifyContent: "center", width: 40 },
+
+  header: { gap: 18, marginBottom: 28 },
+  headerWide: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between" },
+  headerCopy: { flexShrink: 1 },
+  kicker: { ...type.kicker, marginBottom: 10 },
+  title: { ...type.display, fontSize: 34, lineHeight: 40 },
+  titleCompact: { fontSize: 27, lineHeight: 33 },
+  subtitle: { ...type.body, fontSize: 15, marginTop: 8 },
+  fullWidth: { alignSelf: "stretch" },
+
+  errorBox: { alignItems: "center", backgroundColor: colors.dangerSoft, borderColor: colors.dangerBorder, borderRadius: radius.lg, borderWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: 14, marginBottom: 22, padding: 16 },
+  errorIcon: { alignItems: "center", backgroundColor: colors.dangerSoft, borderRadius: radius.md, height: 38, justifyContent: "center", width: 38 },
+  errorCopy: { flex: 1, minWidth: 180 },
+  errorTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 14, marginBottom: 3 },
+  errorText: { color: colors.danger, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
+
+  sectionHeader: { marginBottom: 16 },
+  sectionTitle: { ...type.heading },
+  sectionSubtitle: { ...type.small, fontSize: 13, marginTop: 4 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: GRID_GAP },
+
+  attentionPanel: { alignItems: "center", borderRadius: radius.lg, borderWidth: 1, flexDirection: "row", gap: 14, marginTop: GRID_GAP, padding: 16 },
+  attentionIcon: { alignItems: "center", borderRadius: radius.md, height: 38, justifyContent: "center", width: 38 },
   attentionCopy: { flex: 1 },
-  attentionTitle: { color: colors.text, fontSize: 14, fontWeight: "800", marginBottom: 3 },
-  attentionText: { color: colors.softText, fontSize: 13 },
-  quickSection: { marginTop: 32 },
-  quickGrid: { flexDirection: "row", gap: 12 },
+  attentionTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 14.5, marginBottom: 3 },
+  attentionText: { ...type.body, fontSize: 13.5 },
+
+  quickSection: { gap: 16, marginTop: spacing.section },
+  quickGrid: { flexDirection: "row", gap: GRID_GAP },
   quickGridStacked: { flexDirection: "column" },
-  quickCard: { backgroundColor: colors.card, borderColor: colors.border, borderRadius: 16, borderWidth: 1, flex: 1, padding: 17 },
-  quickNumber: { color: colors.primary, fontSize: 26, fontWeight: "800", marginBottom: 9 },
-  quickLabel: { color: colors.text, fontSize: 14, fontWeight: "800", marginBottom: 4 },
-  quickHint: { color: colors.muted, fontSize: 12 },
-  filterBar: { backgroundColor: colors.card, borderColor: colors.border, borderRadius: 14, borderWidth: 1, marginBottom: 18, padding: 14 },
-  filterLabel: { color: colors.muted, fontSize: 12, fontWeight: "700", marginBottom: 10 },
-  filterOptions: { flexDirection: "row", gap: 8 },
-  filterOption: { borderColor: colors.border, borderRadius: 8, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 8 },
-  filterOptionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterText: { color: colors.muted, fontSize: 12, fontWeight: "700" },
-  filterTextActive: { color: colors.primaryInk },
-  loadingBox: { backgroundColor: colors.card, borderRadius: 14, padding: 18 },
-  loadingText: { color: colors.muted, fontSize: 13 },
-  productList: { gap: 12 },
-  emptyBox: { alignItems: "center", backgroundColor: colors.card, borderColor: colors.border, borderRadius: 18, borderWidth: 1, marginBottom: 12, padding: 28 },
-  emptyMark: { color: colors.primary, fontSize: 28, fontWeight: "800", marginBottom: 10 },
-  emptyTitle: { color: colors.text, fontSize: 16, fontWeight: "800", marginBottom: 6 },
-  emptyText: { color: colors.muted, fontSize: 13, lineHeight: 19, marginBottom: 16, maxWidth: 340, textAlign: "center" },
-  errorBox: { backgroundColor: colors.dangerSoft, borderColor: "#80434A", borderRadius: 14, borderWidth: 1, marginBottom: 18, padding: 16 },
-  errorTitle: { color: colors.text, fontSize: 14, fontWeight: "800", marginBottom: 5 },
-  errorText: { color: colors.danger, fontSize: 13, marginBottom: 12 },
-  retryButton: { alignSelf: "flex-start", borderColor: colors.danger, borderRadius: 8, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 8 },
-  retryText: { color: colors.danger, fontSize: 12, fontWeight: "800" },
+  quickCard: { ...glass.surface, alignItems: "center", borderRadius: radius.lg, flex: 1, flexDirection: "row", gap: 12, padding: 16 },
+  quickCardHovered: { borderColor: colors.borderStrong },
+  quickCardPressed: { opacity: 0.85 },
+  quickIcon: { alignItems: "center", borderRadius: radius.md, height: 40, justifyContent: "center", width: 40 },
+  quickCopy: { flex: 1, minWidth: 0 },
+  quickLabel: { color: colors.text, fontFamily: fonts.bold, fontSize: 14.5 },
+  quickHint: { ...type.small, marginTop: 2 },
+  quickNumber: { fontFamily: fonts.extrabold, fontSize: 22, letterSpacing: -0.4 },
+
+  filterBar: { ...glass.surface, alignItems: "center", borderRadius: radius.lg, flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between", marginBottom: 18, paddingHorizontal: 16, paddingVertical: 12 },
+  filterLabelRow: { alignItems: "center", flexDirection: "row", gap: 8 },
+  filterLabel: { color: colors.softText, fontFamily: fonts.medium, fontSize: 13 },
+  filterOptions: { backgroundColor: "rgba(0, 0, 0, 0.22)", borderRadius: radius.pill, flexDirection: "row", gap: 4, padding: 4 },
+  filterOption: { borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
+  filterOptionActive: { backgroundColor: colors.primary },
+  filterText: { color: colors.softText, fontFamily: fonts.semibold, fontSize: 12.5 },
+  filterTextActive: { color: colors.primaryInk, fontFamily: fonts.bold },
+
+  count: { ...type.small, fontSize: 13, marginBottom: 14 },
+  stateBox: { ...glass.surface, alignItems: "center", borderRadius: radius.xl, marginBottom: GRID_GAP, paddingHorizontal: 24, paddingVertical: 36 },
+  stateIcon: { alignItems: "center", backgroundColor: colors.primarySoft, borderRadius: radius.lg, height: 52, justifyContent: "center", marginBottom: 14, width: 52 },
+  stateTitle: { ...type.heading, fontSize: 17, marginBottom: 6, textAlign: "center" },
+  stateText: { ...type.body, fontSize: 13.5, marginTop: 4, maxWidth: 360, textAlign: "center" },
+  stateAction: { marginTop: 18 },
 });

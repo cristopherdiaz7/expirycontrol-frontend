@@ -29,9 +29,10 @@ Necesita el backend en ejecución: [expirycontrol-backend](https://github.com/cr
 | Lenguaje | JavaScript |
 | Almacenamiento local | AsyncStorage |
 | Peticiones HTTP | `fetch` |
+| Tipografía e iconos | Inter (`@expo-google-fonts/inter`) e iconos Feather (`@expo/vector-icons`) |
 | Tests | Jest con el preset de Expo |
 
-No usa librerías de navegación ni de componentes: la navegación se resuelve con estado y los estilos con `StyleSheet`.
+No usa librerías de navegación ni de componentes: la navegación se resuelve con estado y los estilos con `StyleSheet`, a partir de un único archivo de diseño (`constants/theme.js`).
 
 ## Requisitos
 
@@ -155,9 +156,9 @@ Con la IP de la PC en `.env` también funciona Expo Web, así que sirve para pro
 
 ### Inicio
 
-Tiene cuatro pestañas:
+Tiene cuatro secciones, que se cambian desde una barra de navegación flotante: arriba en PC y abajo en móvil.
 
-| Pestaña | Qué muestra |
+| Sección | Qué muestra |
 |---|---|
 | **Resumen** | Cuatro contadores (Total, Vencidos, Por vencer, Vigentes), un panel que indica si hay productos que revisar y accesos rápidos |
 | **Productos** | Todos los productos, con botón para agregar |
@@ -273,12 +274,16 @@ expirycontrol-frontend/
 │   ├── RegisterScreen.js      Registro
 │   └── HomeScreen.js          Resumen, Productos, Vencidos y Por vencer
 ├── components/
+│   ├── AppBackground.js       Fondo de la aplicación
+│   ├── AuthLayout.js          Estructura común de Login y Registro
+│   ├── Brand.js               Logo y nombre
 │   ├── FeedbackProvider.js    Avisos y diálogo de confirmación
 │   ├── FormMessage.js         Mensaje de error dentro de un formulario
+│   ├── NavBar.js              Navegación flotante (superior en PC, inferior en móvil)
 │   ├── ProductCard.js         Tarjeta de producto con su estado
 │   ├── ProductForm.js         Formulario para crear y editar
 │   ├── StatCard.js            Contador del Resumen
-│   ├── TextField.js           Campo de texto con error
+│   ├── TextField.js           Campo de texto con icono y error
 │   └── customButton.js        Botón
 ├── services/
 │   ├── api.js                 Peticiones HTTP, token y mensajes de error
@@ -286,9 +291,10 @@ expirycontrol-frontend/
 │   ├── productsService.js     CRUD, vencimientos y estadísticas
 │   └── sessionService.js      Guardado de la sesión en AsyncStorage
 ├── utils/
-│   └── dates.js               Fecha local, validación y cálculo de días
+│   ├── dates.js               Fecha local, validación y cálculo de días
+│   └── useBreakpoint.js       Tamaño de pantalla (móvil, tablet, PC)
 ├── constants/
-│   └── colors.js              Paleta de colores y espaciados
+│   └── theme.js               Sistema visual: colores, tipografía, espaciados, radios y sombras
 ├── __tests__/                 Tests de servicios y utilidades
 ├── .env.example               Plantilla de la variable de entorno
 ├── app.json                   Configuración de Expo
