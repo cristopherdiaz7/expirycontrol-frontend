@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import AuthLayout from "../components/AuthLayout";
+import AuthSwitch from "../components/AuthSwitch";
 import CustomButton from "../components/customButton";
 import FormMessage from "../components/FormMessage";
 import TextField from "../components/TextField";
-import { colors, fonts } from "../constants/theme";
 import { registerUser } from "../services/authService";
+import { EMAIL_PATTERN } from "../utils/validation";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 6;
 
 const benefits = [
@@ -68,16 +67,7 @@ export default function RegisterScreen({ onRegister, onCancel }) {
       <TextField label="Contraseña" icon="lock" value={password} onChangeText={change("password", setPassword)} placeholder="Mínimo 6 caracteres" secureTextEntry error={errors.password} />
       <TextField label="Confirmar contraseña" icon="lock" value={confirmPassword} onChangeText={change("confirmPassword", setConfirmPassword)} placeholder="Repite tu contraseña" secureTextEntry error={errors.confirmPassword} />
       <CustomButton title={loading ? "Creando cuenta..." : "Crear cuenta"} icon={loading ? undefined : "user-plus"} onPress={handleSubmit} disabled={loading} />
-      <View style={styles.switchRow}>
-        <Text style={styles.switchPrompt}>¿Ya tienes una cuenta?</Text>
-        <Pressable onPress={onCancel} accessibilityRole="link"><Text style={styles.switchLink}>Volver al login</Text></Pressable>
-      </View>
+      <AuthSwitch prompt="¿Ya tienes una cuenta?" linkText="Volver al login" onPress={onCancel} />
     </AuthLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  switchRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 5, justifyContent: "center", marginTop: 2 },
-  switchPrompt: { color: colors.muted, fontFamily: fonts.regular, fontSize: 13 },
-  switchLink: { color: colors.primary, fontFamily: fonts.bold, fontSize: 13 },
-});

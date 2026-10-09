@@ -330,6 +330,7 @@ expirycontrol-frontend/
 ├── components/
 │   ├── AppBackground.js       Fondo de la aplicación
 │   ├── AuthLayout.js          Estructura común de Login y Registro
+│   ├── AuthSwitch.js          Enlace para pasar de Login a Registro y viceversa
 │   ├── Brand.js               Logo y nombre
 │   ├── FeedbackProvider.js    Avisos y diálogo de confirmación
 │   ├── FormMessage.js         Mensaje de error dentro de un formulario
@@ -339,6 +340,7 @@ expirycontrol-frontend/
 │   ├── ProductCard.js         Tarjeta de producto con su estado
 │   ├── ProductForm.js         Formulario para crear y editar
 │   ├── StatCard.js            Contador del Resumen
+│   ├── StateBox.js            Recuadro de carga, vacío y error de una sección
 │   ├── TextField.js           Campo de texto con icono y error
 │   └── customButton.js        Botón
 ├── services/
@@ -352,7 +354,8 @@ expirycontrol-frontend/
 │   ├── currency.js            Formato y lectura de importes en ARS
 │   ├── dates.js               Fecha local, validación y cálculo de días
 │   ├── notifications.js       Categorías, agrupado y textos de las notificaciones
-│   └── useBreakpoint.js       Tamaño de pantalla (móvil, tablet, PC)
+│   ├── useBreakpoint.js       Tamaño de pantalla (móvil, tablet, PC)
+│   └── validation.js          Formato de email
 ├── constants/
 │   └── theme.js               Sistema visual: colores, tipografía, espaciados, radios y sombras
 ├── __tests__/                 Tests de servicios y utilidades

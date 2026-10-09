@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import CustomButton from "./customButton";
+import StateBox from "./StateBox";
 import { colors, fonts, glass, radius, tones, type } from "../constants/theme";
 import { describeNotification, groupNotifications } from "../utils/notifications";
 
@@ -44,33 +45,23 @@ export default function NotificationCenter({ data, loading, error, busy, onMarkR
   const groups = groupNotifications(notifications);
 
   if (loading && !data) {
-    return (
-      <View style={styles.stateBox}>
-        <ActivityIndicator color={colors.primary} />
-        <Text style={styles.stateText}>Cargando notificaciones...</Text>
-      </View>
-    );
+    return <StateBox loading text="Cargando notificaciones..." />;
   }
 
   if (error) {
     return (
-      <View style={styles.stateBox}>
-        <View style={[styles.stateIcon, { backgroundColor: colors.dangerSoft }]}><Feather name="wifi-off" size={22} color={colors.danger} /></View>
-        <Text style={styles.stateTitle}>No pudimos cargar las notificaciones</Text>
-        <Text style={styles.stateText}>{error}</Text>
-        <CustomButton title="Reintentar" icon="refresh-cw" size="sm" variant="secondary" onPress={onRetry} style={styles.stateAction} />
-      </View>
+      <StateBox
+        icon="wifi-off"
+        tone="danger"
+        title="No pudimos cargar las notificaciones"
+        text={error}
+        action={<CustomButton title="Reintentar" icon="refresh-cw" size="sm" variant="secondary" onPress={onRetry} />}
+      />
     );
   }
 
   if (notifications.length === 0) {
-    return (
-      <View style={styles.stateBox}>
-        <View style={styles.stateIcon}><Feather name="bell-off" size={22} color={colors.primary} /></View>
-        <Text style={styles.stateTitle}>Sin notificaciones</Text>
-        <Text style={styles.stateText}>No tienes productos vencidos ni que venzan en los próximos 14 días.</Text>
-      </View>
-    );
+    return <StateBox icon="bell-off" title="Sin notificaciones" text="No tienes productos vencidos ni que venzan en los próximos 14 días." />;
   }
 
   return (
@@ -140,10 +131,4 @@ const styles = StyleSheet.create({
   markButtonHovered: { borderColor: colors.borderStrong },
   markButtonPressed: { opacity: 0.6 },
   markButtonText: { color: colors.text, fontFamily: fonts.semibold, fontSize: 12.5 },
-
-  stateBox: { ...glass.surface, alignItems: "center", borderRadius: radius.xl, paddingHorizontal: 24, paddingVertical: 36 },
-  stateIcon: { alignItems: "center", backgroundColor: colors.primarySoft, borderRadius: radius.lg, height: 52, justifyContent: "center", marginBottom: 14, width: 52 },
-  stateTitle: { ...type.heading, fontSize: 17, marginBottom: 6, textAlign: "center" },
-  stateText: { ...type.body, fontSize: 13.5, marginTop: 4, maxWidth: 360, textAlign: "center" },
-  stateAction: { marginTop: 18 },
 });

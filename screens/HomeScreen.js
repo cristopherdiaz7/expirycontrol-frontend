@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import AppBackground from "../components/AppBackground";
 import Brand from "../components/Brand";
 import CustomButton from "../components/customButton";
@@ -11,6 +11,7 @@ import NotificationCenter from "../components/NotificationCenter";
 import ProductCard from "../components/ProductCard";
 import ProductForm from "../components/ProductForm";
 import StatCard from "../components/StatCard";
+import StateBox from "../components/StateBox";
 import { colors, fonts, glass, layout, radius, spacing, tones, type } from "../constants/theme";
 import { isSessionExpired } from "../services/api";
 import { getLossStats, getLosses } from "../services/lossesService";
@@ -315,19 +316,17 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
               <Text style={styles.count}>{loading ? "Actualizando productos..." : `${visibleProducts.length} producto${visibleProducts.length === 1 ? "" : "s"} en esta vista`}</Text>
 
               {loading && visibleProducts.length === 0 ? (
-                <View style={styles.stateBox}>
-                  <ActivityIndicator color={colors.primary} />
-                  <Text style={styles.stateText}>Cargando productos...</Text>
-                </View>
+                <StateBox loading text="Cargando productos..." style={styles.stateBox} />
               ) : null}
 
               {!loading && !error && visibleProducts.length === 0 ? (
-                <View style={styles.stateBox}>
-                  <View style={styles.stateIcon}><Feather name={emptyCopy[section].icon} size={22} color={colors.primary} /></View>
-                  <Text style={styles.stateTitle}>{emptyCopy[section].title}</Text>
-                  <Text style={styles.stateText}>{emptyCopy[section].text}</Text>
-                  {section === "products" ? <CustomButton title="Agregar producto" icon="plus" onPress={openCreate} style={styles.stateAction} /> : null}
-                </View>
+                <StateBox
+                  icon={emptyCopy[section].icon}
+                  title={emptyCopy[section].title}
+                  text={emptyCopy[section].text}
+                  action={section === "products" ? <CustomButton title="Agregar producto" icon="plus" onPress={openCreate} /> : null}
+                  style={styles.stateBox}
+                />
               ) : null}
 
               <View style={styles.grid}>
@@ -419,9 +418,5 @@ const styles = StyleSheet.create({
   filterTextActive: { color: colors.primaryInk, fontFamily: fonts.bold },
 
   count: { ...type.small, fontSize: 13, marginBottom: 14 },
-  stateBox: { ...glass.surface, alignItems: "center", borderRadius: radius.xl, marginBottom: GRID_GAP, paddingHorizontal: 24, paddingVertical: 36 },
-  stateIcon: { alignItems: "center", backgroundColor: colors.primarySoft, borderRadius: radius.lg, height: 52, justifyContent: "center", marginBottom: 14, width: 52 },
-  stateTitle: { ...type.heading, fontSize: 17, marginBottom: 6, textAlign: "center" },
-  stateText: { ...type.body, fontSize: 13.5, marginTop: 4, maxWidth: 360, textAlign: "center" },
-  stateAction: { marginTop: 18 },
+  stateBox: { marginBottom: GRID_GAP },
 });

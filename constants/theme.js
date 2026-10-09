@@ -4,20 +4,14 @@ import { Platform } from "react-native";
 
 export const colors = {
   background: "#07131A",
-  backgroundAlt: "#0B2025",
-  card: "#10262A",
-  cardElevated: "#17343A",
   inputBackground: "rgba(8, 24, 29, 0.72)",
-  border: "#285057",
   borderStrong: "#3A6870",
   primary: "#8DDBB2",
-  primaryDark: "#5FB98A",
   primaryInk: "#092018",
   primarySoft: "rgba(141, 219, 178, 0.14)",
   text: "#F4F7F1",
   softText: "#C5D6D0",
   muted: "#9EB4B3",
-  white: "#FFFFFF",
   danger: "#F28A82",
   dangerSoft: "rgba(242, 138, 130, 0.14)",
   dangerBorder: "rgba(242, 138, 130, 0.38)",
@@ -43,11 +37,6 @@ export const tones = {
 };
 
 export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
   xxl: 28,
   section: 32,
   page: 20,
