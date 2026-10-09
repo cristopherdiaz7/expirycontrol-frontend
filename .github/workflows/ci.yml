@@ -1,0 +1,162 @@
+name: CI
+
+# Integración continua: tests y compilación web en cada cambio.
+# Despliegue continuo: en main, además, se publica el sitio en Azure.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Por defecto el workflow solo puede leer el código. Cada job pide lo que le falte.
+permissions:
+  contents: read
+
+# Si llega un cambio nuevo a la misma rama, se cancela la ejecución anterior.
+# En main no se cancela: un despliegue no se interrumpe por la mitad.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# No son secretos: la dirección del backend queda escrita en el JavaScript que
+# descarga el navegador, y el nombre de la cuenta solo dice dónde se publica.
+env:
+  API_URL: https://ca-expirycontrol-backend.jollysea-7a4f1f80.northcentralus.azurecontainerapps.io
+  STORAGE_ACCOUNT: stexpirycontrolweb
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v7
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      # npm ci instala exactamente las versiones de package-lock.json.
+      - name: Instalar las dependencias
+        run: npm ci
+
+      - name: Ejecutar los tests
+        run: npm test -- --ci
+
+  build:
+    name: Compilar web
+    # Solo si los tests pasaron.
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v7
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Instalar las dependencias
+        run: npm ci
+
+      # Expo escribe el valor de EXPO_PUBLIC_API_URL dentro del JavaScript al compilar.
+      # Aquí no hay archivo .env: el valor sale de este workflow.
+      - name: Compilar la versión web
+        run: npx expo export --platform web
+        env:
+          EXPO_PUBLIC_API_URL: ${{ env.API_URL }}
+
+      - name: Comprobar la compilación
+        run: |
+          test -f dist/index.html
+          if ! grep -rqF "$API_URL" dist/_expo; then
+            echo "La dirección del backend no quedó en el JavaScript compilado"
+            exit 1
+          fi
+          if grep -rqE "localhost:8080" dist/_expo; then
+            echo "El JavaScript compilado apunta a localhost"
+            exit 1
+          fi
+          echo "Archivos generados: $(find dist -type f | wc -l)"
+
+      # Lo que se publica es exactamente esta compilación: no se vuelve a compilar.
+      - name: Guardar la compilación para el job de despliegue
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: sitio
+          path: dist/
+          retention-days: 1
+
+  deploy:
+    name: Desplegar en Azure
+    # Solo en main y solo si la compilación pasó las comprobaciones.
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Permite pedir a GitHub el token OIDC con el que se inicia sesión en Azure.
+      id-token: write
+    steps:
+      - name: Recuperar la compilación
+        uses: actions/download-artifact@v8
+        with:
+          name: sitio
+          path: dist
+
+      # Inicio de sesión sin contraseña (OIDC). Los tres valores son identificadores.
+      - name: Iniciar sesión en Azure
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # El sitio estático sirve lo que haya en el contenedor $web de la cuenta.
+      # no-cache hace que el navegador pregunte siempre si hay una versión nueva.
+      - name: Subir los archivos al sitio
+        run: |
+          set -euo pipefail
+          inicio="$(date -u +%Y-%m-%dT%H:%MZ)"
+          az storage blob upload-batch \
+            --account-name "$STORAGE_ACCOUNT" --auth-mode login \
+            --destination '$web' --source dist \
+            --overwrite --content-cache-control "no-cache" \
+            --no-progress --only-show-errors --output none
+
+          # Borra lo que quedó de versiones anteriores: todo lo que no se acaba de subir.
+          az storage blob delete-batch \
+            --account-name "$STORAGE_ACCOUNT" --auth-mode login \
+            --source '$web' --if-unmodified-since "$inicio" \
+            --only-show-errors --output none
+
+      # El despliegue se da por bueno cuando la URL pública entrega la versión recién compilada.
+      - name: Comprobar el sitio publicado
+        run: |
+          set -euo pipefail
+          url="$(az storage account show --name "$STORAGE_ACCOUNT" --query primaryEndpoints.web --output tsv)"
+          url="${url%/}"
+          bundle="$(grep -oE '/_expo/static/js/web/[^"]+\.js' dist/index.html | head -n 1)"
+
+          for i in $(seq 1 12); do
+            if curl -fsS --max-time 10 "$url/" 2> /dev/null | grep -qF "$bundle" \
+              && curl -fsS --max-time 20 -o /dev/null "$url$bundle"; then
+              echo "Sitio publicado en $url"
+              {
+                echo "### Despliegue correcto"
+                echo ""
+                echo "Sitio publicado en $url"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "El sitio no entrega la versión recién compilada"
+          exit 1
