@@ -13,8 +13,9 @@ export function updateProduct(token, id, product) {
   return apiRequest(`/products/${id}`, { method: "PUT", token, body: JSON.stringify(product) });
 }
 
-export function deleteProduct(token, id) {
-  return apiRequest(`/products/${id}`, { method: "DELETE", token });
+// today: si el producto ya venció, el backend guarda su pérdida antes de eliminarlo.
+export function deleteProduct(token, id, today = getLocalToday()) {
+  return apiRequest(`/products/${id}?today=${today}`, { method: "DELETE", token });
 }
 
 // El backend calcula vencimientos con la fecha local del usuario (parámetro today).

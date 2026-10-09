@@ -74,7 +74,7 @@ describe("productsService", () => {
     it("eliminar envía DELETE al id indicado", () => {
       deleteProduct(TOKEN, 5);
 
-      expect(apiRequest).toHaveBeenCalledWith("/products/5", { method: "DELETE", token: TOKEN });
+      expect(apiRequest).toHaveBeenCalledWith("/products/5?today=2026-10-08", { method: "DELETE", token: TOKEN });
     });
   });
 });
