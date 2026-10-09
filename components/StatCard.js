@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 import { colors, fonts, glass, radius, tones, type } from "../constants/theme";
 
-export default function StatCard({ label, value, tone = "default", icon = "box", style }) {
+export default function StatCard({ label, value, tone = "default", icon = "box", style, valueSize }) {
   const palette = tones[tone];
 
   return (
@@ -10,7 +10,7 @@ export default function StatCard({ label, value, tone = "default", icon = "box",
       <View style={[styles.icon, { backgroundColor: palette.bg }]}>
         <Feather name={icon} size={17} color={palette.fg} />
       </View>
-      <Text style={styles.value}>{value}</Text>
+      <Text style={[styles.value, valueSize && { fontSize: valueSize, lineHeight: valueSize + 6 }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
       <Text style={styles.label}>{label}</Text>
     </View>
   );

@@ -6,12 +6,14 @@ import Brand from "../components/Brand";
 import CustomButton from "../components/customButton";
 import { useFeedback } from "../components/FeedbackProvider";
 import NavBar from "../components/NavBar";
+import LossCenter from "../components/LossCenter";
 import NotificationCenter from "../components/NotificationCenter";
 import ProductCard from "../components/ProductCard";
 import ProductForm from "../components/ProductForm";
 import StatCard from "../components/StatCard";
 import { colors, fonts, glass, layout, radius, spacing, tones, type } from "../constants/theme";
 import { isSessionExpired } from "../services/api";
+import { getLossStats, getLosses } from "../services/lossesService";
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from "../services/notificationsService";
 import { deleteProduct, getExpiredProducts, getExpiringProducts, getProductStats, getProducts } from "../services/productsService";
 import useBreakpoint from "../utils/useBreakpoint";
@@ -22,6 +24,7 @@ const sections = [
   { key: "expired", label: "Vencidos", icon: "alert-octagon" },
   { key: "expiring", label: "Por vencer", icon: "clock" },
   { key: "notifications", label: "Notificaciones", shortLabel: "Avisos", icon: "bell" },
+  { key: "losses", label: "Pérdidas", icon: "trending-down" },
 ];
 
 const sectionCopy = {
@@ -30,6 +33,7 @@ const sectionCopy = {
   expired: { kicker: "Requieren atención", title: "Productos vencidos", subtitle: "Productos cuya fecha de vencimiento ya llegó." },
   expiring: { kicker: "Próximos vencimientos", title: "Productos por vencer", subtitle: "Actúa antes de que lleguen a su fecha." },
   notifications: { kicker: "Centro de notificaciones", title: "Notificaciones", subtitle: "Alertas de productos vencidos y de próximos vencimientos." },
+  losses: { kicker: "Pérdidas económicas", title: "Pérdidas", subtitle: "Importe perdido por productos vencidos, en pesos argentinos (ARS)." },
 };
 
 const emptyCopy = {
@@ -52,6 +56,10 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationsError, setNotificationsError] = useState(null);
   const [markingRead, setMarkingRead] = useState(false);
+  const [losses, setLosses] = useState(null);
+  const [lossStats, setLossStats] = useState(null);
+  const [lossesLoading, setLossesLoading] = useState(true);
+  const [lossesError, setLossesError] = useState(null);
   const [days, setDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -102,11 +110,30 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
     }
   };
 
-  const reloadAll = () => Promise.all([loadData(), loadNotifications()]);
+  // Igual que las notificaciones: se cargan aparte para no bloquear el resto.
+  const loadLosses = async () => {
+    try {
+      setLossesLoading(true);
+      setLossesError(null);
+      const [lossData, lossStatsData] = await Promise.all([getLosses(auth.token), getLossStats(auth.token)]);
+      setLosses(lossData);
+      setLossStats(lossStatsData);
+    } catch (requestError) {
+      if (isSessionExpired(requestError)) {
+        onUnauthorized();
+        return;
+      }
+      setLossesError(requestError.status === 404 ? "El servidor no ofrece el registro de pérdidas. Verifica que el backend esté actualizado." : requestError.message);
+    } finally {
+      setLossesLoading(false);
+    }
+  };
+
+  const reloadAll = () => Promise.all([loadData(), loadNotifications(), loadLosses()]);
 
   useEffect(() => { loadData(); }, [auth.token, days]);
   // No dependen del filtro de días: se recargan al cambiar la sesión o los productos.
-  useEffect(() => { loadNotifications(); }, [auth.token]);
+  useEffect(() => { loadNotifications(); loadLosses(); }, [auth.token]);
 
   const handleDelete = async (product) => {
     const accepted = await confirm({
@@ -187,6 +214,9 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
   const productWidth = Math.floor((shellWidth - GRID_GAP * (productColumns - 1)) / productColumns);
   const statColumns = isDesktop ? 4 : 2;
   const statWidth = Math.floor((shellWidth - GRID_GAP * (statColumns - 1)) / statColumns);
+  const lossStatColumns = isTablet ? 3 : 1;
+  const lossStatWidth = Math.floor((shellWidth - GRID_GAP * (lossStatColumns - 1)) / lossStatColumns);
+  const productsWithoutPrice = products.filter((product) => product.unitPrice === null || product.unitPrice === undefined).length;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -260,6 +290,8 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
                 </View>
               </View>
             </View>
+          ) : section === "losses" ? (
+            <LossCenter losses={losses} stats={lossStats} loading={lossesLoading} error={lossesError} onRetry={loadLosses} productsWithoutPrice={productsWithoutPrice} statWidth={lossStatWidth} compact={!isTablet} />
           ) : section === "notifications" ? (
             <NotificationCenter data={notifications} loading={notificationsLoading} error={notificationsError} busy={markingRead} onMarkRead={handleMarkRead} onMarkAllRead={handleMarkAllRead} onRetry={loadNotifications} />
           ) : (

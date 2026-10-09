@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 import CustomButton from "./customButton";
 import { colors, fonts, glass, radius, tones, type } from "../constants/theme";
+import { formatARS } from "../utils/currency";
 import { daysUntil } from "../utils/dates";
 
 // Mismas reglas que el backend: vencido si la fecha es hoy o anterior,
@@ -30,6 +31,7 @@ function Detail({ icon, label, value, color = colors.text }) {
 export default function ProductCard({ product, soonDays = 7, onEdit, onDelete, style }) {
   const status = getProductStatus(product.expirationDate, soonDays);
   const palette = tones[status.tone];
+  const hasPrice = product.unitPrice !== null && product.unitPrice !== undefined;
 
   return (
     <View style={[styles.card, style]}>
@@ -51,8 +53,9 @@ export default function ProductCard({ product, soonDays = 7, onEdit, onDelete, s
 
       <View style={styles.detailsRow}>
         <Detail icon="calendar" label="Vencimiento" value={product.expirationDate} />
-        <Detail icon="layers" label="Cantidad" value={`${product.quantity} un.`} />
         <Detail icon="activity" label="Estado" value={status.detail} color={palette.fg} />
+        <Detail icon="layers" label="Cantidad" value={`${product.quantity} un.`} />
+        <Detail icon="dollar-sign" label="Precio unitario" value={formatARS(product.unitPrice)} color={hasPrice ? colors.text : colors.muted} />
       </View>
 
       <View style={styles.actions}>
@@ -73,8 +76,9 @@ const styles = StyleSheet.create({
   badge: { alignItems: "center", borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: 5, paddingHorizontal: 10, paddingVertical: 5 },
   badgeText: { fontFamily: fonts.bold, fontSize: 11.5 },
   description: { ...type.body, fontSize: 13.5, lineHeight: 20, marginTop: 14 },
-  detailsRow: { borderBottomColor: colors.glassBorder, borderBottomWidth: 1, borderTopColor: colors.glassBorder, borderTopWidth: 1, flexDirection: "row", gap: 10, justifyContent: "space-between", marginTop: 16, paddingVertical: 13 },
-  detail: { flexShrink: 1 },
+  detailsRow: { borderBottomColor: colors.glassBorder, borderBottomWidth: 1, borderTopColor: colors.glassBorder, borderTopWidth: 1, flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginTop: 16, paddingVertical: 13, rowGap: 14 },
+  // Dos columnas: cuatro datos en una sola fila no entran en una tarjeta angosta.
+  detail: { flexBasis: "48%" },
   detailLabelRow: { alignItems: "center", flexDirection: "row", gap: 5, marginBottom: 5 },
   detailLabel: { ...type.label, fontSize: 10 },
   detailValue: { fontFamily: fonts.semibold, fontSize: 13 },

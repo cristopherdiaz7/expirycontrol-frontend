@@ -7,10 +7,11 @@ import TextField from "./TextField";
 import { colors, fonts, glass, radius, shadows, spacing, type } from "../constants/theme";
 import { isSessionExpired } from "../services/api";
 import { createProduct, updateProduct } from "../services/productsService";
+import { getPriceError, parsePrice, priceToInput } from "../utils/currency";
 import { isValidDateString } from "../utils/dates";
 import useBreakpoint from "../utils/useBreakpoint";
 
-const emptyProduct = { name: "", description: "", category: "", quantity: "", expirationDate: "" };
+const emptyProduct = { name: "", description: "", category: "", quantity: "", expirationDate: "", unitPrice: "" };
 
 function validate(form) {
   const errors = {};
@@ -24,6 +25,9 @@ function validate(form) {
   } else if (!Number.isInteger(Number(form.quantity)) || Number(form.quantity) < 0) {
     errors.quantity = "Debe ser un número entero igual o mayor que cero.";
   }
+
+  const priceError = getPriceError(form.unitPrice);
+  if (priceError) errors.unitPrice = priceError;
 
   if (!form.expirationDate.trim()) {
     errors.expirationDate = "Ingresa la fecha de vencimiento.";
@@ -42,7 +46,7 @@ export default function ProductForm({ token, product, onSaved, onCancel, onUnaut
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setForm(product ? { ...product, quantity: String(product.quantity) } : emptyProduct);
+    setForm(product ? { ...product, quantity: String(product.quantity), unitPrice: priceToInput(product.unitPrice) } : emptyProduct);
     setErrors({});
     setFormError(null);
   }, [product]);
@@ -58,7 +62,7 @@ export default function ProductForm({ token, product, onSaved, onCancel, onUnaut
     setFormError(null);
     if (Object.keys(validationErrors).length > 0) return;
 
-    const payload = { name: form.name.trim(), description: form.description.trim(), category: form.category.trim(), quantity: Number(form.quantity), expirationDate: form.expirationDate.trim() };
+    const payload = { name: form.name.trim(), description: form.description.trim(), category: form.category.trim(), quantity: Number(form.quantity), expirationDate: form.expirationDate.trim(), unitPrice: parsePrice(form.unitPrice) };
 
     try {
       setLoading(true);
@@ -95,8 +99,9 @@ export default function ProductForm({ token, product, onSaved, onCancel, onUnaut
         <TextField label="Categoría" icon="tag" value={form.category} onChangeText={(value) => updateField("category", value)} placeholder="Lácteos" autoCapitalize="sentences" error={errors.category} />
         <View style={[styles.row, !isTablet && styles.rowStacked]}>
           <View style={styles.half}><TextField label="Cantidad" icon="layers" value={form.quantity} onChangeText={(value) => updateField("quantity", value.replace(/[^0-9]/g, ""))} placeholder="0" keyboardType="numeric" error={errors.quantity} /></View>
-          <View style={styles.half}><TextField label="Vencimiento" icon="calendar" value={form.expirationDate} onChangeText={(value) => updateField("expirationDate", value)} placeholder="AAAA-MM-DD" keyboardType="numbers-and-punctuation" error={errors.expirationDate} helper="Ejemplo: 2026-12-31" /></View>
+          <View style={styles.half}><TextField label="Precio unitario (ARS)" icon="dollar-sign" value={form.unitPrice} onChangeText={(value) => updateField("unitPrice", value.replace(/[^0-9.,]/g, ""))} placeholder="0,00" keyboardType="decimal-pad" error={errors.unitPrice} helper="En pesos argentinos. Ejemplo: 1250,50" /></View>
         </View>
+        <TextField label="Vencimiento" icon="calendar" value={form.expirationDate} onChangeText={(value) => updateField("expirationDate", value)} placeholder="AAAA-MM-DD" keyboardType="numbers-and-punctuation" error={errors.expirationDate} helper="Ejemplo: 2026-12-31" />
         <View style={[styles.actions, isTablet && styles.actionsWide]}>
           <CustomButton title="Cancelar" onPress={onCancel} disabled={loading} variant="secondary" style={isTablet && styles.actionWide} />
           <CustomButton title={loading ? "Guardando..." : product ? "Guardar cambios" : "Crear producto"} icon={loading ? undefined : "check"} onPress={handleSubmit} disabled={loading} style={isTablet && styles.actionWide} />

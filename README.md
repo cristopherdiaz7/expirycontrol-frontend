@@ -1,6 +1,6 @@
 # ExpiryControl — Frontend
 
-Aplicación de ExpiryControl para registrar productos con su cantidad y fecha de vencimiento, y ver de un vistazo cuáles están vencidos, por vencer o vigentes. Cada usuario ve solo sus propios productos.
+Aplicación de ExpiryControl para registrar productos con su cantidad, precio y fecha de vencimiento, ver de un vistazo cuáles están vencidos, por vencer o vigentes, y conocer las pérdidas económicas por productos vencidos. Cada usuario ve solo sus propios productos.
 
 Está hecha con Expo y React Native, y funciona en el navegador (Expo Web), en Android y en iOS.
 
@@ -15,6 +15,7 @@ Necesita el backend en ejecución: [expirycontrol-backend](https://github.com/cr
 - [Pantallas y funcionalidades](#pantallas-y-funcionalidades)
 - [Sesión](#sesión)
 - [Fechas y vencimientos](#fechas-y-vencimientos)
+- [Importes](#importes)
 - [Tests](#tests)
 - [Pruebas manuales](#pruebas-manuales)
 - [Estructura del proyecto](#estructura-del-proyecto)
@@ -156,7 +157,7 @@ Con la IP de la PC en `.env` también funciona Expo Web, así que sirve para pro
 
 ### Inicio
 
-Tiene cinco secciones, que se cambian desde una barra de navegación flotante: arriba en PC y abajo en móvil.
+Tiene seis secciones, que se cambian desde una barra de navegación flotante: arriba en PC y abajo en móvil.
 
 | Sección | Qué muestra |
 |---|---|
@@ -165,8 +166,9 @@ Tiene cinco secciones, que se cambian desde una barra de navegación flotante: a
 | **Vencidos** | Los productos cuya fecha ya pasó o es hoy |
 | **Por vencer** | Los que vencen en los próximos 3, 7 o 14 días, según el filtro elegido |
 | **Notificaciones** | El centro de notificaciones, con las alertas de vencimiento |
+| **Pérdidas** | El importe perdido por productos vencidos, en pesos argentinos |
 
-Cada producto se muestra en una tarjeta con nombre, categoría, descripción, fecha, cantidad, una etiqueta de estado (Vencido, Por vencer o Vigente) y botones para editar y eliminar.
+Cada producto se muestra en una tarjeta con nombre, categoría, descripción, fecha, cantidad, precio unitario, una etiqueta de estado (Vencido, Por vencer o Vigente) y botones para editar y eliminar.
 
 ### Centro de notificaciones
 
@@ -181,10 +183,22 @@ Cada producto se muestra en una tarjeta con nombre, categoría, descripción, fe
 
 Son notificaciones dentro de la app: no incluye avisos del sistema con la app cerrada.
 
+### Pérdidas
+
+- Resumen con el importe total perdido, la cantidad de pérdidas y las unidades perdidas.
+- Importe por mes, del más reciente al más antiguo, con una barra que compara los meses.
+- Historial con producto, cantidad afectada, precio unitario, fecha de vencimiento e importe total.
+- Las pérdidas de productos que ya se eliminaron siguen en el historial, marcadas como "Producto eliminado".
+- Si hay productos sin precio, un aviso indica cuántos son: no generan pérdida hasta que se les cargue.
+- Se actualiza al crear, editar o eliminar un producto.
+
+Las pérdidas las registra el backend de forma automática cuando un producto con precio vence. Una misma pérdida nunca se cuenta dos veces.
+
 ### Formulario de producto
 
 - Sirve para crear y para editar.
-- Campos: nombre, descripción, categoría, cantidad (entero, 0 o mayor) y vencimiento (`AAAA-MM-DD`).
+- Campos: nombre, descripción, categoría, cantidad (entero, 0 o mayor), precio unitario en pesos argentinos y vencimiento (`AAAA-MM-DD`).
+- El precio acepta coma o punto como separador decimal: `1250,50`, `1250.50` y `1.250,50` son equivalentes.
 - Valida cada campo antes de enviar.
 
 ### Avisos y confirmaciones
@@ -218,6 +232,12 @@ El token se guarda sin cifrar. Es aceptable para desarrollo; una versión de pro
 - El filtro de días se aplica en la pestaña "Por vencer" y también cambia los contadores del Resumen.
 - Si la fecha del dispositivo difiere más de un día de la real, el backend rechaza la consulta y la app muestra el error.
 
+## Importes
+
+- Los importes se muestran en pesos argentinos con formato local: `$ 1.234,56`.
+- Al escribir un precio, un punto seguido de exactamente tres dígitos se interpreta como separador de miles (`1.250` es mil doscientos cincuenta). Para decimales conviene usar la coma.
+- Un producto creado antes de que existiera el precio figura como "Sin precio" hasta que se edite.
+
 ## Tests
 
 ```bash
@@ -232,8 +252,9 @@ No necesitan el backend ni el archivo `.env`.
 | `__tests__/dates.test.js` | 11 | Fecha local, validación de fechas y cálculo de días |
 | `__tests__/productsService.test.js` | 8 | Rutas y métodos del CRUD, y envío de `today` y `days` |
 | `__tests__/notifications.test.js` | 12 | Llamadas del servicio de notificaciones, agrupado por categoría y textos de cada aviso |
+| `__tests__/currency.test.js` | 23 | Formato y lectura de importes en ARS, validación del precio, nombres de mes y servicio de pérdidas |
 
-Total: 44 tests.
+Total: 67 tests.
 
 Los tests cubren la lógica que no depende de la pantalla. La interfaz se verifica con las pruebas manuales de la sección siguiente.
 
@@ -272,19 +293,29 @@ Con el backend y la app en ejecución:
 18. Editar la fecha de un producto ya leído para que cambie de categoría: su notificación vuelve a figurar sin leer.
 19. Eliminar un producto: su notificación desaparece.
 
+**Precios y pérdidas**
+
+20. Crear un producto sin precio: error en el campo "Precio unitario".
+21. Crear un producto con precio `1250,50`: la tarjeta muestra `$ 1.250,50`.
+22. Crear un producto con precio y fecha de ayer: aparece en Pérdidas con el importe cantidad × precio.
+23. Editar la cantidad de ese producto: el importe de la pérdida se actualiza.
+24. Cambiar su fecha a una futura: la pérdida desaparece.
+25. Volver a ponerle fecha de ayer y eliminarlo: la pérdida sigue en el historial, marcada como "Producto eliminado".
+26. Entrar varias veces a Pérdidas: los totales no cambian.
+
 **Sesión**
 
-20. Recargar la página con la sesión iniciada: sigue en el Inicio.
-21. Cerrar sesión: vuelve al login, sin aviso.
-22. Sesión vencida: esperar una hora, o borrar el token desde las herramientas del navegador, y realizar cualquier acción. Debe volver al login con el aviso de sesión vencida.
+27. Recargar la página con la sesión iniciada: sigue en el Inicio.
+28. Cerrar sesión: vuelve al login, sin aviso.
+29. Sesión vencida: esperar una hora, o borrar el token desde las herramientas del navegador, y realizar cualquier acción. Debe volver al login con el aviso de sesión vencida.
 
 **Aislamiento**
 
-23. Iniciar sesión con otro usuario: no se ven los productos ni las notificaciones del primero.
+30. Iniciar sesión con otro usuario: no se ven los productos, las notificaciones ni las pérdidas del primero.
 
 **Errores**
 
-24. Detener el backend y recargar: aparece "No se pudo conectar con el servidor." con el botón "Reintentar".
+31. Detener el backend y recargar: aparece "No se pudo conectar con el servidor." con el botón "Reintentar".
 
 ## Estructura del proyecto
 
@@ -302,6 +333,7 @@ expirycontrol-frontend/
 │   ├── Brand.js               Logo y nombre
 │   ├── FeedbackProvider.js    Avisos y diálogo de confirmación
 │   ├── FormMessage.js         Mensaje de error dentro de un formulario
+│   ├── LossCenter.js          Sección de pérdidas: resumen, importe por mes e historial
 │   ├── NavBar.js              Navegación flotante (superior en PC, inferior en móvil)
 │   ├── NotificationCenter.js  Centro de notificaciones
 │   ├── ProductCard.js         Tarjeta de producto con su estado
@@ -312,10 +344,12 @@ expirycontrol-frontend/
 ├── services/
 │   ├── api.js                 Peticiones HTTP, token y mensajes de error
 │   ├── authService.js         Registro y login
+│   ├── lossesService.js       Pérdidas y sus estadísticas
 │   ├── notificationsService.js  Notificaciones y estado de lectura
 │   ├── productsService.js     CRUD, vencimientos y estadísticas
 │   └── sessionService.js      Guardado de la sesión en AsyncStorage
 ├── utils/
+│   ├── currency.js            Formato y lectura de importes en ARS
 │   ├── dates.js               Fecha local, validación y cálculo de días
 │   ├── notifications.js       Categorías, agrupado y textos de las notificaciones
 │   └── useBreakpoint.js       Tamaño de pantalla (móvil, tablet, PC)

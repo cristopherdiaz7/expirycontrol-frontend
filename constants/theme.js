@@ -117,7 +117,7 @@ export const glass = {
 
 export const breakpoints = {
   tablet: 640,
-  desktop: 960,
+  desktop: 1120,
   wide: 1240,
 };
 
