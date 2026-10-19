@@ -330,15 +330,33 @@ Usa el backend desplegado en Azure Container Apps. La dirección debe abrirse co
 
 La versión web de Expo se compila a archivos estáticos (HTML, JavaScript y fuentes): no necesita un servidor propio. Esos archivos se sirven desde una **cuenta de almacenamiento** de Azure con la opción de sitio estático, dentro del mismo grupo de recursos que el backend (`rg-expirycontrol`).
 
-El workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre en GitHub Actions en cada push a `main`, en cada Pull Request hacia `main` y a mano desde la pestaña Actions.
+La integración continua (CI) y el despliegue continuo (CD) están en workflows separados:
+
+| Workflow | Archivo | Qué hace | Despliega |
+|---|---|---|---|
+| **CI** | [`ci.yml`](.github/workflows/ci.yml) | Ejecuta los tests y compila la versión web | **No** |
+| **CD** | [`cd.yml`](.github/workflows/cd.yml) | Publica en Azure una compilación ya probada | Sí |
+
+**CI.** Corre en cada Pull Request hacia `main`, en cada push a `main` y a mano desde la pestaña Actions. Un push a `main` que solo cambia documentación (archivos `.md`) no lo ejecuta, así que tampoco despliega.
 
 | Job | Qué hace | Si falla |
 |---|---|---|
-| **Tests** | Instala las dependencias con `npm ci` y ejecuta los tests | Los jobs siguientes no se ejecutan |
-| **Compilar web** | Genera la versión web y comprueba que apunta al backend público | No se despliega |
-| **Desplegar en Azure** | Solo en `main`: sube los archivos y comprueba el sitio publicado | El pipeline queda en rojo |
+| **Tests** | Instala las dependencias con `npm ci` y ejecuta los tests | El job siguiente no se ejecuta |
+| **Compilar web** | Genera la versión web y comprueba que apunta al backend público. En `main`, guarda la compilación durante 30 días | El CD no se ejecuta |
 
-En un Pull Request el despliegue no corre: ahí solo se prueba y se compila. Lo que se publica es la misma compilación que pasó las comprobaciones; no se vuelve a compilar.
+**CD.** No compila nada: descarga la compilación que guardó el CI y la sube al sitio.
+
+- **Automático:** cuando el CI termina bien sobre un cambio en `main`.
+- **Manual:** pestaña **Actions** → **CD** → **Run workflow**. Sin datos, publica la última compilación correcta de `main`; indicando el número de una ejecución del CI, publica esa. Sirve para volver a una versión anterior.
+
+Antes de publicar, comprueba que la compilación venga de un CI correcto sobre `main`. Después verifica que la URL pública entregue los archivos recién subidos.
+
+| Situación | Tests | Compilación | Despliegue |
+|---|---|---|---|
+| Pull Request hacia `main` | Sí | Se compila y se comprueba, no se guarda | No |
+| Merge o push a `main` | Sí | Sí, se guarda | Sí, en el workflow CD |
+| Merge a `main` que solo cambia archivos `.md` | No corre el CI | No | No |
+| CD ejecutado a mano | No | No | Sí, con una compilación ya guardada |
 
 ### La dirección del backend
 
