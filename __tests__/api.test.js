@@ -45,14 +45,15 @@ describe("apiRequest", () => {
   });
 
   describe("peticiones correctas", () => {
-    it("crea el cliente de Axios con la URL sin barra final y devuelve los datos", async () => {
-      const { apiRequest, request, create } = loadApi();
+    it("crea el cliente de Axios con la URL sin barra final, un límite de tiempo, y devuelve los datos", async () => {
+      const { apiRequest, request, create, REQUEST_TIMEOUT_MS } = loadApi();
       request.mockResolvedValue(ok(200, [{ id: 1 }]));
 
       const result = await apiRequest("/products", { token: "abc" });
 
       expect(result).toEqual([{ id: 1 }]);
-      expect(create).toHaveBeenCalledWith({ baseURL: API_URL });
+      expect(create).toHaveBeenCalledWith({ baseURL: API_URL, timeout: REQUEST_TIMEOUT_MS });
+      expect(REQUEST_TIMEOUT_MS).toBe(15000);
       expect(request).toHaveBeenCalledWith(expect.objectContaining({ url: "/products", method: "GET" }));
     });
 
@@ -166,6 +167,19 @@ describe("apiRequest", () => {
     it("error de conexión: estado 0 y mensaje claro", async () => {
       const { apiRequest, isSessionExpired, request } = loadApi();
       request.mockRejectedValue(new Error("Network Error"));
+
+      const error = await captureError(apiRequest("/products", { token: "abc" }));
+
+      expect(error.status).toBe(0);
+      expect(error.message).toBe("No se pudo conectar con el servidor.");
+      expect(isSessionExpired(error)).toBe(false);
+    });
+
+    it("tiempo agotado: se trata como error de conexión", async () => {
+      const { apiRequest, isSessionExpired, request } = loadApi();
+      const timeout = new Error("timeout of 15000ms exceeded");
+      timeout.code = "ECONNABORTED";
+      request.mockRejectedValue(timeout);
 
       const error = await captureError(apiRequest("/products", { token: "abc" }));
 

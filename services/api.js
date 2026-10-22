@@ -2,9 +2,12 @@ import axios from "axios";
 
 const baseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "");
 
+// Si el servidor no responde en este tiempo, la petición se corta y se muestra el error de conexión.
+export const REQUEST_TIMEOUT_MS = 15000;
+
 // Cliente de Axios con la dirección del backend. Todas las peticiones de la app pasan por acá.
 // Axios convierte el cuerpo a JSON y la respuesta de JSON a objeto sin hacerlo a mano.
-const client = axios.create({ baseURL: baseUrl });
+const client = axios.create({ baseURL: baseUrl, timeout: REQUEST_TIMEOUT_MS });
 
 export const SESSION_EXPIRED_MESSAGE = "Tu sesión expiró. Inicia sesión nuevamente.";
 
@@ -64,7 +67,7 @@ export async function apiRequest(path, options = {}) {
     // Una respuesta sin cuerpo (por ejemplo, 204 al eliminar) llega como texto vacío.
     return response.data === "" || response.data === undefined ? null : response.data;
   } catch (requestError) {
-    // Sin respuesta del servidor: no hubo conexión.
+    // Sin respuesta del servidor: no hubo conexión o tardó más que el límite.
     if (!requestError.response) {
       throw new ApiError("No se pudo conectar con el servidor.", 0);
     }

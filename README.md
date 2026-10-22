@@ -85,10 +85,13 @@ El valor correcto depende de dónde se ejecute la app (ver [Cómo ejecutar](#có
 | Dónde | Valor de `EXPO_PUBLIC_API_URL` | Comando | Estado |
 |---|---|---|---|
 | Expo Web | `http://localhost:8080` | `npm run web` | Probado |
-| Emulador de Android | `http://10.0.2.2:8080` | `npm run android` | No verificado |
+| Emulador de Android | `http://10.0.2.2:8080` | `npm run android` | Probado, contra el backend de Azure |
 | Dispositivo físico | `http://<IP-de-la-PC>:8080` | `npm start` | No verificado |
 
 "No verificado" significa que los pasos son los habituales de Expo, pero no se probaron en este proyecto.
+
+- **Emulador de Android:** se probó con Android Studio (Pixel 6, Android 14) y `EXPO_PUBLIC_API_URL` apuntando al backend de Azure: inicio de sesión y creación de un producto. Con 8 GB de RAM en la PC funciona, pero lento.
+- **iPhone:** Expo Go para iOS solo abre proyectos del SDK más reciente y no admite el SDK 53 de este proyecto. La versión web sí funciona en el navegador del celular.
 
 ### Expo Web
 
@@ -227,7 +230,8 @@ Todas las peticiones pasan por [`services/api.js`](services/api.js), que usa **A
 - Un cliente creado con `axios.create`, con la dirección del backend (`EXPO_PUBLIC_API_URL`) como `baseURL`.
 - Los servicios (`authService`, `productsService`, `notificationsService`, `lossesService`) le pasan la ruta, el método, el token y el cuerpo como objeto (`data`). Axios lo convierte a JSON y convierte la respuesta en un objeto.
 - Si hay token, se envía en la cabecera `Authorization: Bearer <token>`.
-- Los errores se traducen a mensajes para el usuario: `401` con token es sesión vencida, `404` producto inexistente, `409` email ya registrado, `5xx` servidor no disponible, y sin respuesta, "No se pudo conectar con el servidor".
+- Cada petición espera como máximo **15 segundos**; si el servidor no responde en ese tiempo, se corta.
+- Los errores se traducen a mensajes para el usuario: `401` con token es sesión vencida, `404` producto inexistente, `409` email ya registrado, `5xx` servidor no disponible, y sin respuesta o con el tiempo agotado, "No se pudo conectar con el servidor".
 
 ## Fechas y vencimientos
 
@@ -259,14 +263,14 @@ No necesitan el backend ni el archivo `.env`.
 
 | Archivo | Tests | Qué cubre |
 |---|---|---|
-| `__tests__/api.test.js` | 13 | Armado de peticiones, envío del token y mensajes para cada error (400, 401 con y sin token, 404, 409, 500 y falla de conexión) |
+| `__tests__/api.test.js` | 14 | Cliente de Axios con límite de tiempo, envío del token y mensajes para cada error (400, 401 con y sin token, 404, 409, 500, falla de conexión y tiempo agotado) |
 | `__tests__/dates.test.js` | 11 | Fecha local, validación de fechas y cálculo de días |
 | `__tests__/productsService.test.js` | 8 | Rutas y métodos del CRUD, y envío de `today` y `days` |
 | `__tests__/notifications.test.js` | 12 | Llamadas del servicio de notificaciones, agrupado por categoría y textos de cada aviso |
 | `__tests__/currency.test.js` | 23 | Formato y lectura de importes en ARS, validación del precio, nombres de mes y servicio de pérdidas |
 | `__tests__/TextField.test.js` | 3 | Botón del ojo: la contraseña empieza oculta, se muestra y se vuelve a ocultar; los campos que no son de contraseña no lo tienen |
 
-Total: 70 tests.
+Total: 71 tests.
 
 Los tests cubren sobre todo la lógica que no depende de la pantalla, más el comportamiento del campo de contraseña. El resto de la interfaz se verifica con las pruebas manuales de la sección siguiente.
 
