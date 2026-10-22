@@ -62,13 +62,13 @@ describe("productsService", () => {
     it("crear envía POST con el producto", () => {
       createProduct(TOKEN, product);
 
-      expect(apiRequest).toHaveBeenCalledWith("/products", { method: "POST", token: TOKEN, body: JSON.stringify(product) });
+      expect(apiRequest).toHaveBeenCalledWith("/products", { method: "POST", token: TOKEN, data: product });
     });
 
     it("actualizar envía PUT al id indicado", () => {
       updateProduct(TOKEN, 5, product);
 
-      expect(apiRequest).toHaveBeenCalledWith("/products/5", { method: "PUT", token: TOKEN, body: JSON.stringify(product) });
+      expect(apiRequest).toHaveBeenCalledWith("/products/5", { method: "PUT", token: TOKEN, data: product });
     });
 
     it("eliminar envía DELETE al id indicado", () => {

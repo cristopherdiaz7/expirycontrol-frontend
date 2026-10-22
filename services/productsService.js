@@ -6,11 +6,11 @@ export function getProducts(token) {
 }
 
 export function createProduct(token, product) {
-  return apiRequest("/products", { method: "POST", token, body: JSON.stringify(product) });
+  return apiRequest("/products", { method: "POST", token, data: product });
 }
 
 export function updateProduct(token, id, product) {
-  return apiRequest(`/products/${id}`, { method: "PUT", token, body: JSON.stringify(product) });
+  return apiRequest(`/products/${id}`, { method: "PUT", token, data: product });
 }
 
 // today: si el producto ya venció, el backend guarda su pérdida antes de eliminarlo.

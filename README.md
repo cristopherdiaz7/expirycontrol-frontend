@@ -30,7 +30,7 @@ Necesita el backend en ejecución: [expirycontrol-backend](https://github.com/cr
 | Web | react-native-web |
 | Lenguaje | JavaScript |
 | Almacenamiento local | AsyncStorage |
-| Peticiones HTTP | `fetch` |
+| Peticiones HTTP | Axios |
 | Tipografía e iconos | Inter (`@expo-google-fonts/inter`) e iconos Feather (`@expo/vector-icons`) |
 | Tests | Jest con el preset de Expo |
 
@@ -218,6 +218,15 @@ Las pérdidas las registra el backend de forma automática cuando un producto co
 6. **Cierre de sesión:** el botón "Cerrar sesión" borra la sesión guardada y vuelve al login.
 
 El token se guarda sin cifrar. Es aceptable para desarrollo; una versión de producción para móviles debería usar almacenamiento seguro del dispositivo.
+
+## Peticiones al backend
+
+Todas las peticiones pasan por [`services/api.js`](services/api.js), que usa **Axios**:
+
+- Un cliente creado con `axios.create`, con la dirección del backend (`EXPO_PUBLIC_API_URL`) como `baseURL`.
+- Los servicios (`authService`, `productsService`, `notificationsService`, `lossesService`) le pasan la ruta, el método, el token y el cuerpo como objeto (`data`). Axios lo convierte a JSON y convierte la respuesta en un objeto.
+- Si hay token, se envía en la cabecera `Authorization: Bearer <token>`.
+- Los errores se traducen a mensajes para el usuario: `401` con token es sesión vencida, `404` producto inexistente, `409` email ya registrado, `5xx` servidor no disponible, y sin respuesta, "No se pudo conectar con el servidor".
 
 ## Fechas y vencimientos
 
@@ -411,7 +420,7 @@ expirycontrol-frontend/
 │   ├── TextField.js           Campo de texto con icono y error
 │   └── customButton.js        Botón
 ├── services/
-│   ├── api.js                 Peticiones HTTP, token y mensajes de error
+│   ├── api.js                 Cliente de Axios: peticiones al backend, token y mensajes de error
 │   ├── authService.js         Registro y login
 │   ├── lossesService.js       Pérdidas y sus estadísticas
 │   ├── notificationsService.js  Notificaciones y estado de lectura
