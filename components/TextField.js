@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useState } from "react";
-import { Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, fonts, radius, type } from "../constants/theme";
 
 export default function TextField({
@@ -16,6 +16,9 @@ export default function TextField({
   icon,
 }) {
   const [focused, setFocused] = useState(false);
+  // En los campos de contraseña, el ojo permite ver u ocultar lo que se escribió.
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const hideText = secureTextEntry && !passwordVisible;
   const iconColor = error ? colors.danger : focused ? colors.primary : colors.muted;
 
   return (
@@ -28,7 +31,7 @@ export default function TextField({
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={colors.muted}
-          secureTextEntry={secureTextEntry}
+          secureTextEntry={hideText}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
@@ -36,6 +39,17 @@ export default function TextField({
           onBlur={() => setFocused(false)}
           style={styles.input}
         />
+        {secureTextEntry ? (
+          <Pressable
+            onPress={() => setPasswordVisible((visible) => !visible)}
+            accessibilityRole="button"
+            accessibilityLabel={passwordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
+            hitSlop={8}
+            style={styles.toggle}
+          >
+            <Feather name={passwordVisible ? "eye-off" : "eye"} size={18} color={colors.muted} />
+          </Pressable>
+        ) : null}
       </View>
       {error ? (
         <View style={styles.errorRow}>
@@ -55,6 +69,7 @@ const styles = StyleSheet.create({
   inputWrapFocused: { borderColor: colors.primary },
   inputWrapError: { borderColor: colors.danger },
   icon: { marginLeft: 14 },
+  toggle: { paddingHorizontal: 14, paddingVertical: 10 },
   input: {
     color: colors.text,
     flex: 1,
