@@ -154,6 +154,7 @@ Con la IP de la PC en `.env` también funciona Expo Web, así que sirve para pro
 
 - Alta con nombre, email, contraseña y confirmación.
 - Valida el formato del email, el mínimo de 6 caracteres y que ambas contraseñas coincidan.
+- En los campos de contraseña (login y registro), el botón del ojo muestra u oculta lo que se escribió. Cada campo se maneja por separado.
 - Al terminar vuelve al login con un aviso de cuenta creada.
 
 ### Inicio
@@ -263,10 +264,11 @@ No necesitan el backend ni el archivo `.env`.
 | `__tests__/productsService.test.js` | 8 | Rutas y métodos del CRUD, y envío de `today` y `days` |
 | `__tests__/notifications.test.js` | 12 | Llamadas del servicio de notificaciones, agrupado por categoría y textos de cada aviso |
 | `__tests__/currency.test.js` | 23 | Formato y lectura de importes en ARS, validación del precio, nombres de mes y servicio de pérdidas |
+| `__tests__/TextField.test.js` | 3 | Botón del ojo: la contraseña empieza oculta, se muestra y se vuelve a ocultar; los campos que no son de contraseña no lo tienen |
 
-Total: 67 tests.
+Total: 70 tests.
 
-Los tests cubren la lógica que no depende de la pantalla. La interfaz se verifica con las pruebas manuales de la sección siguiente.
+Los tests cubren sobre todo la lógica que no depende de la pantalla, más el comportamiento del campo de contraseña. El resto de la interfaz se verifica con las pruebas manuales de la sección siguiente.
 
 ## Pruebas manuales
 
