@@ -1,4 +1,10 @@
+import axios from "axios";
+
 const baseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "");
+
+// Cliente de Axios con la dirección del backend. Todas las peticiones de la app pasan por acá.
+// Axios convierte el cuerpo a JSON y la respuesta de JSON a objeto sin hacerlo a mano.
+const client = axios.create({ baseURL: baseUrl });
 
 export const SESSION_EXPIRED_MESSAGE = "Tu sesión expiró. Inicia sesión nuevamente.";
 
@@ -40,43 +46,32 @@ function getErrorMessage(status, payload, hadToken) {
   return payload?.error || "No se pudo completar la operación.";
 }
 
+// options: method (GET por defecto), token (JWT de la sesión) y data (cuerpo de la petición).
 export async function apiRequest(path, options = {}) {
   if (!baseUrl) {
     throw new ApiError("No está configurada la URL del servidor.", 0);
   }
 
-  const { token, ...requestOptions } = options;
-  let response;
+  const { token, method = "GET", data } = options;
 
   try {
-    response = await fetch(`${baseUrl}${path}`, {
-      ...requestOptions,
-      headers: {
-        ...(requestOptions.body ? { "Content-Type": "application/json" } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...requestOptions.headers,
-      },
+    const response = await client.request({
+      url: path,
+      method,
+      data,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
-  } catch {
-    throw new ApiError("No se pudo conectar con el servidor.", 0);
-  }
-
-  const responseText = await response.text();
-  let payload = null;
-
-  if (responseText) {
-    try {
-      payload = JSON.parse(responseText);
-    } catch {
-      payload = null;
+    // Una respuesta sin cuerpo (por ejemplo, 204 al eliminar) llega como texto vacío.
+    return response.data === "" || response.data === undefined ? null : response.data;
+  } catch (requestError) {
+    // Sin respuesta del servidor: no hubo conexión.
+    if (!requestError.response) {
+      throw new ApiError("No se pudo conectar con el servidor.", 0);
     }
-  }
 
-  if (!response.ok) {
-    const error = new ApiError(getErrorMessage(response.status, payload, Boolean(token)), response.status);
-    error.sessionExpired = response.status === 401 && Boolean(token);
+    const { status, data: payload } = requestError.response;
+    const error = new ApiError(getErrorMessage(status, payload, Boolean(token)), status);
+    error.sessionExpired = status === 401 && Boolean(token);
     throw error;
   }
-
-  return payload;
 }
