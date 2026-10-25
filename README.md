@@ -206,6 +206,14 @@ Las pérdidas las registra el backend de forma automática cuando un producto co
 - El precio acepta coma o punto como separador decimal: `1250,50`, `1250.50` y `1.250,50` son equivalentes.
 - Valida cada campo antes de enviar.
 
+### Cambiar contraseña
+
+- Se abre con el botón "Cambiar contraseña" del Resumen.
+- Pide la contraseña actual, la nueva y su confirmación, cada una con el botón del ojo.
+- Antes de enviar valida que la nueva tenga al menos 6 caracteres, que sea distinta de la actual y que la confirmación coincida.
+- La contraseña actual la verifica el backend (`PUT /account/password`). Si es incorrecta se muestra el error en el formulario, sin cerrar la sesión.
+- Al terminar vuelve al Resumen con el aviso "Contraseña actualizada". La sesión sigue abierta; el próximo inicio de sesión es con la contraseña nueva.
+
 ### Avisos y confirmaciones
 
 - Los resultados de cada operación aparecen como un aviso temporal en la parte superior.
@@ -269,8 +277,10 @@ No necesitan el backend ni el archivo `.env`.
 | `__tests__/notifications.test.js` | 12 | Llamadas del servicio de notificaciones, agrupado por categoría y textos de cada aviso |
 | `__tests__/currency.test.js` | 23 | Formato y lectura de importes en ARS, validación del precio, nombres de mes y servicio de pérdidas |
 | `__tests__/TextField.test.js` | 3 | Botón del ojo: la contraseña empieza oculta, se muestra y se vuelve a ocultar; los campos que no son de contraseña no lo tienen |
+| `__tests__/authService.test.js` | 3 | Rutas y métodos de registro, login y cambio de contraseña, y envío del token solo en el cambio de contraseña |
+| `__tests__/changePassword.test.js` | 5 | Validaciones del formulario de cambio de contraseña: campos obligatorios, mínimo de caracteres, nueva distinta de la actual y confirmación |
 
-Total: 71 tests.
+Total: 79 tests.
 
 Los tests cubren sobre todo la lógica que no depende de la pantalla, más el comportamiento del campo de contraseña. El resto de la interfaz se verifica con las pruebas manuales de la sección siguiente.
 
@@ -332,6 +342,13 @@ Con el backend y la app en ejecución:
 **Errores**
 
 31. Detener el backend y recargar: aparece "No se pudo conectar con el servidor." con el botón "Reintentar".
+
+**Cambio de contraseña**
+
+32. Guardar con los campos vacíos: aparece un error debajo de cada campo.
+33. Contraseña actual incorrecta: "La contraseña actual es incorrecta", y la sesión sigue abierta.
+34. Cambio correcto: aviso "Contraseña actualizada".
+35. Cerrar sesión: la contraseña anterior da "Email o contraseña incorrectos" y la nueva permite entrar.
 
 ## Despliegue en Azure
 
