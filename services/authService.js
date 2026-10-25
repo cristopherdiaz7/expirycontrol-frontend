@@ -13,3 +13,12 @@ export async function loginUser(data) {
     data,
   });
 }
+
+// data: currentPassword y newPassword. El backend responde 204 sin cuerpo.
+export function changePassword(token, data) {
+  return apiRequest("/account/password", {
+    method: "PUT",
+    token,
+    data,
+  });
+}

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import AppBackground from "../components/AppBackground";
 import Brand from "../components/Brand";
+import ChangePasswordForm from "../components/ChangePasswordForm";
 import CustomButton from "../components/customButton";
 import { useFeedback } from "../components/FeedbackProvider";
 import NavBar from "../components/NavBar";
@@ -66,6 +67,7 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
   const [error, setError] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   // Ancho real del contenido, para calcular las columnas de las grillas.
   const [shellWidth, setShellWidth] = useState(Math.min(width - spacing.page * 2, layout.maxWidth));
 
@@ -193,11 +195,25 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
   const openCreate = () => { setEditingProduct(null); setShowForm(true); };
   const openEdit = (product) => { setEditingProduct(product); setShowForm(true); };
 
+  const handlePasswordChanged = () => {
+    setShowPasswordForm(false);
+    notify("Desde ahora inicia sesión con tu nueva contraseña.", { title: "Contraseña actualizada" });
+  };
+
   if (showForm) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <AppBackground />
         <ProductForm token={auth.token} product={editingProduct} onSaved={handleSaved} onUnauthorized={onUnauthorized} onCancel={closeForm} />
+      </SafeAreaView>
+    );
+  }
+
+  if (showPasswordForm) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <AppBackground />
+        <ChangePasswordForm token={auth.token} onSaved={handlePasswordChanged} onUnauthorized={onUnauthorized} onCancel={() => setShowPasswordForm(false)} />
       </SafeAreaView>
     );
   }
@@ -242,7 +258,12 @@ export default function HomeScreen({ auth, onLogout, onUnauthorized }) {
               <Text style={[styles.title, !isTablet && styles.titleCompact]}>{section === "dashboard" ? `Hola, ${auth.user?.name || "usuario"}` : copy.title}</Text>
               <Text style={styles.subtitle}>{copy.subtitle}</Text>
             </View>
-            {section === "dashboard" || section === "products" ? <CustomButton title="Agregar producto" icon="plus" onPress={openCreate} style={!isTablet && styles.fullWidth} /> : null}
+            {section === "dashboard" || section === "products" ? (
+              <View style={[styles.headerActions, isTablet && styles.headerActionsWide]}>
+                {section === "dashboard" ? <CustomButton title="Cambiar contraseña" icon="key" variant="secondary" onPress={() => setShowPasswordForm(true)} style={!isTablet && styles.fullWidth} /> : null}
+                <CustomButton title="Agregar producto" icon="plus" onPress={openCreate} style={!isTablet && styles.fullWidth} />
+              </View>
+            ) : null}
           </View>
 
           {error ? (
@@ -372,6 +393,8 @@ const styles = StyleSheet.create({
 
   header: { gap: 18, marginBottom: 28 },
   headerWide: { alignItems: "flex-end", flexDirection: "row", justifyContent: "space-between" },
+  headerActions: { gap: 10 },
+  headerActionsWide: { flexDirection: "row" },
   headerCopy: { flexShrink: 1 },
   kicker: { ...type.kicker, marginBottom: 10 },
   title: { ...type.display, fontSize: 34, lineHeight: 40 },
